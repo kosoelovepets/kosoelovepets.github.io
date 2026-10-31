@@ -1,9 +1,10 @@
 
-const STORE_PRODUCTS = 'kosoepets_products_v4';
-const STORE_PASS = 'kosoepets_pass_v4';
-const STORE_BANNER_IMG = 'kosoepets_banner_img';
-const STORE_BANNER_TXT = 'kosoepets_banner_txt';
-const STORE_ABOUT = 'kosoepets_about';
+const STORE_PRODUCTS = 'kosoepets_products_v5';
+const STORE_PASS = 'kosoepets_pass_v5';
+const STORE_BANNER_IMG = 'kosoepets_banner_img_v5';
+const STORE_BANNER_TXT = 'kosoepets_banner_txt_v5';
+const STORE_ABOUT = 'kosoepets_about_v5';
+const STORE_CONTACT = 'kosoepets_contact_v5';
 
 const defaultProducts = [
     { id: 1, type: 'Cats', category: 'Snack', name: 'Tuna Bites', price: '$5.99', exp: '2027-12-01', img: 'https://images.unsplash.com/photo-1583337130417-3346a1be7dee?auto=format&fit=crop&w=400&q=80', specs: 'Healthy tuna flavor.' },
@@ -36,6 +37,7 @@ const defaultProducts = [
 ];
 
 let products = JSON.parse(localStorage.getItem(STORE_PRODUCTS)) || defaultProducts;
+let cart = JSON.parse(localStorage.getItem('kosoepets_cart')) || [];
 let currentAdminPass = localStorage.getItem(STORE_PASS) || 'admin';
 let isAdmin = false;
 let currentProducts = products;
@@ -46,15 +48,26 @@ const loginBtn = document.getElementById('loginBtn');
 const logoutBtn = document.getElementById('logoutBtn');
 const searchInput = document.getElementById('searchInput');
 const categoryTitle = document.getElementById('categoryTitle');
+const cartCountEl = document.getElementById('cartCount');
 
 document.addEventListener('DOMContentLoaded', () => {
     if(localStorage.getItem(STORE_BANNER_IMG)) document.getElementById('bannerImgEl').src = localStorage.getItem(STORE_BANNER_IMG);
     if(localStorage.getItem(STORE_BANNER_TXT)) document.getElementById('bannerTextEl').innerText = localStorage.getItem(STORE_BANNER_TXT);
     if(localStorage.getItem(STORE_ABOUT)) document.getElementById('aboutTextEl').innerText = localStorage.getItem(STORE_ABOUT);
+    
+    let savedContact = JSON.parse(localStorage.getItem(STORE_CONTACT));
+    if(savedContact) {
+        document.getElementById('contactPhoneEl').innerHTML = `<i class="fa fa-phone" style="color:#ff9a9e;"></i> ${savedContact.phone}`;
+        document.getElementById('contactEmailEl').innerHTML = `<i class="fa fa-envelope" style="color:#ff9a9e;"></i> ${savedContact.email}`;
+        document.getElementById('fbLinkEl').href = savedContact.fb;
+        document.getElementById('tiktokLinkEl').href = savedContact.tiktok;
+    }
+    
+    updateCartCount();
     renderProducts(products);
 });
 
-// File Upload Handlers (Base64 Data URL)
+// File Upload Handlers
 function attachFileHandler(inputId, targetUrlId) {
     const el = document.getElementById(inputId);
     if(!el) return;
@@ -73,6 +86,67 @@ attachFileHandler('addImgFile', 'addImg');
 
 function closeModal(id) { document.getElementById(id).style.display = 'none'; }
 function saveProductsToLocal() { localStorage.setItem(STORE_PRODUCTS, JSON.stringify(products)); }
+
+// Cart Logic
+function addToCart(id) {
+    const item = products.find(p => p.id === id);
+    if(item) {
+        cart.push(item);
+        localStorage.setItem('kosoepets_cart', JSON.stringify(cart));
+        updateCartCount();
+        alert(`${item.name} added to cart!`);
+    }
+}
+
+function updateCartCount() {
+    cartCountEl.innerText = cart.length;
+}
+
+function openCartModal() {
+    const listEl = document.getElementById('cartItemsList');
+    listEl.innerHTML = '';
+    if(cart.length === 0) {
+        listEl.innerHTML = '<p style="text-align:center;">Your cart is empty.</p>';
+    } else {
+        let total = 0;
+        cart.forEach((item, index) => {
+            let numPrice = parseFloat(item.price.replace('$', '')) || 0;
+            total += numPrice;
+            listEl.innerHTML += `
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; border-bottom:1px solid #eee; padding-bottom:5px;">
+                    <span>${item.name} (${item.price})</span>
+                    <button onclick="removeFromCart(${index})" style="background:#ff4757; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer;">Remove</button>
+                </div>`;
+        });
+        listEl.innerHTML += `<div style="text-align:right; font-weight:bold; margin-top:10px;">Total: $${total.toFixed(2)}</div>`;
+    }
+    document.getElementById('cartModal').style.display = 'block';
+}
+
+function removeFromCart(index) {
+    cart.splice(index, 1);
+    localStorage.setItem('kosoepets_cart', JSON.stringify(cart));
+    updateCartCount();
+    openCartModal();
+}
+
+function redirectToViber() {
+    if(cart.length === 0) {
+        alert('Your cart is empty!');
+        return;
+    }
+    let orderSummary = "Hello Ko Soe Love Pets, I would like to order the following items:%0A";
+    let total = 0;
+    cart.forEach(item => {
+        orderSummary += `- ${item.name} (${item.price})%0A`;
+        total += parseFloat(item.price.replace('$', '')) || 0;
+    });
+    orderSummary += `Total: $${total.toFixed(2)}`;
+    
+    // Viber deep link format
+    const viberUrl = `viber://chat?number=%2B9592625972117&text=${orderSummary}`;
+    window.location.href = viberUrl;
+}
 
 // Search
 searchInput.addEventListener('input', (e) => {
@@ -145,7 +219,7 @@ function renderProducts(items) {
                 <p class="price">${item.price}</p>
                 <p><strong>Exp:</strong> ${item.exp}</p>
                 <p>${item.specs}</p>
-                <button class="buy-btn">🛒 Add to Cart</button>
+                <button class="buy-btn" onclick="addToCart(${item.id})">🛒 Add to Cart</button>
                 ${adminHtml}
             </div>
         `;
@@ -166,6 +240,7 @@ function login() {
         document.getElementById('changePassBtn').classList.remove('hidden');
         document.getElementById('editBannerBtn').classList.remove('hidden');
         document.getElementById('editAboutBtn').classList.remove('hidden');
+        document.getElementById('editContactBtn').classList.remove('hidden');
         document.getElementById('addBtn').classList.remove('hidden');
         renderProducts(currentProducts);
     } else {
@@ -179,6 +254,7 @@ logoutBtn.onclick = () => {
     document.getElementById('changePassBtn').classList.add('hidden');
     document.getElementById('editBannerBtn').classList.add('hidden');
     document.getElementById('editAboutBtn').classList.add('hidden');
+    document.getElementById('editContactBtn').classList.add('hidden');
     document.getElementById('addBtn').classList.add('hidden');
     renderProducts(currentProducts);
 };
@@ -275,7 +351,7 @@ function deleteProduct(id) {
     }
 }
 
-// Edit Banner & About
+// Edit Banner, About & Contact
 function openBannerEdit() {
     document.getElementById('editBannerText').value = document.getElementById('bannerTextEl').innerText;
     document.getElementById('editBannerImg').value = document.getElementById('bannerImgEl').src;
@@ -300,4 +376,27 @@ function saveAbout() {
     document.getElementById('aboutTextEl').innerText = newAbt;
     localStorage.setItem(STORE_ABOUT, newAbt);
     closeModal('aboutModal');
+}
+function openContactEdit() {
+    let phoneText = document.getElementById('contactPhoneEl').innerText.trim();
+    let emailText = document.getElementById('contactEmailEl').innerText.trim();
+    document.getElementById('editPhone').value = phoneText;
+    document.getElementById('editEmail').value = emailText;
+    document.getElementById('editFb').value = document.getElementById('fbLinkEl').href;
+    document.getElementById('editTiktok').value = document.getElementById('tiktokLinkEl').href;
+    document.getElementById('contactModal').style.display = 'block';
+}
+function saveContact() {
+    const phone = document.getElementById('editPhone').value;
+    const email = document.getElementById('editEmail').value;
+    const fb = document.getElementById('editFb').value;
+    const tiktok = document.getElementById('editTiktok').value;
+    
+    document.getElementById('contactPhoneEl').innerHTML = `<i class="fa fa-phone" style="color:#ff9a9e;"></i> ${phone}`;
+    document.getElementById('contactEmailEl').innerHTML = `<i class="fa fa-envelope" style="color:#ff9a9e;"></i> ${email}`;
+    document.getElementById('fbLinkEl').href = fb;
+    document.getElementById('tiktokLinkEl').href = tiktok;
+    
+    localStorage.setItem(STORE_CONTACT, JSON.stringify({ phone, email, fb, tiktok }));
+    closeModal('contactModal');
 }

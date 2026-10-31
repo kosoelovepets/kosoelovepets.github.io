@@ -15,6 +15,9 @@
             </div>
             <div class="header-controls">
                 <input type="text" id="searchInput" placeholder="Search products, categories...">
+                <div id="cartCounter" class="cart-counter" onclick="openCartModal()">
+                    <i class="fa fa-shopping-cart"></i> <span id="cartCount">0</span>
+                </div>
                 <button id="changePassBtn" class="admin-btn hidden" onclick="openChangePass()"><i class="fa fa-key"></i> Password</button>
                 <button id="loginBtn" class="login-btn">Admin Login</button>
                 <button id="logoutBtn" class="login-btn hidden">Logout</button>
@@ -71,16 +74,28 @@
                 <p id="aboutTextEl">Ko Soe Love Pets is your one-stop shop for all your furry friends' needs. We provide high-quality food, snacks, medicine, and accessories.</p>
             </div>
             <div class="contact-section">
-                <h3>Contact Us</h3>
-                <p><i class="fa fa-phone" style="color:#ff9a9e;"></i> +95 9 123 456 789</p>
-                <p><i class="fa fa-envelope" style="color:#ff9a9e;"></i> contact@kosoelovepets.com</p>
+                <h3>Contact Us <button id="editContactBtn" class="admin-btn hidden" onclick="openContactEdit()"><i class="fa fa-edit"></i> Edit</button></h3>
+                <p id="contactPhoneEl"><i class="fa fa-phone" style="color:#ff9a9e;"></i> +95 9 123 456 789</p>
+                <p id="contactEmailEl"><i class="fa fa-envelope" style="color:#ff9a9e;"></i> contact@kosoelovepets.com</p>
                 <div class="social-links">
-                    <a href="https://facebook.com" target="_blank"><i class="fab fa-facebook"></i> Facebook</a>
-                    <a href="https://tiktok.com" target="_blank"><i class="fab fa-tiktok"></i> TikTok</a>
+                    <a id="fbLinkEl" href="https://facebook.com" target="_blank"><i class="fab fa-facebook"></i> Facebook</a>
+                    <a id="tiktokLinkEl" href="https://tiktok.com" target="_blank"><i class="fab fa-tiktok"></i> TikTok</a>
                 </div>
             </div>
         </div>
     </footer>
+
+    <!-- Cart Modal -->
+    <div id="cartModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('cartModal')">&times;</span>
+            <h2>Your Cart</h2>
+            <div id="cartItemsList" style="max-height: 250px; overflow-y: auto; margin: 10px 0;">
+                <p>Your cart is empty.</p>
+            </div>
+            <button id="viberBuyBtn" class="buy-viber-btn" onclick="redirectToViber()"><i class="fab fa-viber"></i> Buy via Viber (+9592625972117)</button>
+        </div>
+    </div>
 
     <!-- Modals -->
     <div id="loginModal" class="modal">
@@ -126,6 +141,22 @@
             <label>About Us Content:</label>
             <textarea id="editAboutText" rows="6"></textarea>
             <button onclick="saveAbout()">Save Changes</button>
+        </div>
+    </div>
+
+    <div id="contactModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('contactModal')">&times;</span>
+            <h2>Edit Contact Us</h2>
+            <label>Phone Number:</label>
+            <input type="text" id="editPhone">
+            <label>Email Address:</label>
+            <input type="text" id="editEmail">
+            <label>Facebook URL:</label>
+            <input type="text" id="editFb">
+            <label>TikTok URL:</label>
+            <input type="text" id="editTiktok">
+            <button onclick="saveContact()">Save Changes</button>
         </div>
     </div>
 
