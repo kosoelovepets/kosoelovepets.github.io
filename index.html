@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ko Soe Love Pets</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <div class="header-top">
+            <div class="logo-container">
+                <h1><span style="color:#ff758c;">●</span> Ko Soe <span style="color:#ff9a9e;">Love Pets</span></h1>
+            </div>
+            <div class="header-controls">
+                <input type="text" id="searchInput" placeholder="Search products, categories...">
+                <button id="changePassBtn" class="admin-btn hidden" onclick="openChangePass()"><i class="fa fa-key"></i> Password</button>
+                <button id="loginBtn" class="login-btn">Admin Login</button>
+                <button id="logoutBtn" class="login-btn hidden">Logout</button>
+            </div>
+        </div>
+        <nav>
+            <ul class="main-menu">
+                <li><a href="#" class="menu-link" onclick="goHome()">Home</a></li>
+                <li><a href="#" class="menu-link">Cats</a>
+                    <ul class="sub-menu">
+                        <li><a href="#" onclick="filterProducts('Cats', 'Snack')">Snack</a></li>
+                        <li><a href="#" onclick="filterProducts('Cats', 'Food')">Food</a></li>
+                        <li><a href="#" onclick="filterProducts('Cats', 'Medicine')">Medicine</a></li>
+                    </ul>
+                </li>
+                <li><a href="#" class="menu-link">Dogs</a>
+                    <ul class="sub-menu">
+                        <li><a href="#" onclick="filterProducts('Dogs', 'Snack')">Snack</a></li>
+                        <li><a href="#" onclick="filterProducts('Dogs', 'Food')">Food</a></li>
+                        <li><a href="#" onclick="filterProducts('Dogs', 'Medicine')">Medicine</a></li>
+                    </ul>
+                </li>
+                <li><a href="#" class="menu-link">Accessories</a>
+                    <ul class="sub-menu">
+                        <li><a href="#" onclick="filterProducts('Accessories', 'Bowls')">Bowls</a></li>
+                        <li><a href="#" onclick="filterProducts('Accessories', 'Toys')">Toys</a></li>
+                        <li><a href="#" onclick="filterProducts('Accessories', 'Gear')">Gear</a></li>
+                    </ul>
+                </li>
+            </ul>
+        </nav>
+    </header>
+
+    <div class="banner">
+        <img id="bannerImgEl" src="https://images.unsplash.com/photo-1541364983171-a8ba01e95cfc?auto=format&fit=crop&w=1200&q=80" alt="Cats and Dogs playing">
+        <div class="banner-text" id="bannerTextEl">Welcome to Ko Soe Love Pets!</div>
+        <button id="editBannerBtn" class="edit-banner-btn hidden" onclick="openBannerEdit()"><i class="fa fa-edit"></i> Edit Banner</button>
+    </div>
+
+    <main>
+        <h2 id="categoryTitle">All Hot Items</h2>
+        <div class="admin-actions">
+            <button id="addBtn" class="admin-btn hidden" onclick="openAddModal()"><i class="fa fa-plus"></i> Add New Product</button>
+        </div>
+        <div id="productGrid" class="product-grid">
+            <!-- Products will be loaded here -->
+        </div>
+    </main>
+
+    <footer>
+        <div class="footer-content">
+            <div class="about-section">
+                <h3>About Us <button id="editAboutBtn" class="admin-btn hidden" onclick="openAboutEdit()"><i class="fa fa-edit"></i> Edit</button></h3>
+                <p id="aboutTextEl">Ko Soe Love Pets is your one-stop shop for all your furry friends' needs. We provide high-quality food, snacks, medicine, and accessories.</p>
+            </div>
+            <div class="contact-section">
+                <h3>Contact Us</h3>
+                <p><i class="fa fa-phone" style="color:#ff9a9e;"></i> +95 9 123 456 789</p>
+                <p><i class="fa fa-envelope" style="color:#ff9a9e;"></i> contact@kosoelovepets.com</p>
+                <div class="social-links">
+                    <a href="https://facebook.com" target="_blank"><i class="fab fa-facebook"></i> Facebook</a>
+                    <a href="https://tiktok.com" target="_blank"><i class="fab fa-tiktok"></i> TikTok</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Modals -->
+    <div id="loginModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('loginModal')">&times;</span>
+            <h2>Admin Login</h2>
+            <input type="text" id="username" placeholder="Username (admin)">
+            <input type="password" id="password" placeholder="Password">
+            <button onclick="login()">Login</button>
+            <p id="loginError" class="error"></p>
+        </div>
+    </div>
+
+    <div id="passModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('passModal')">&times;</span>
+            <h2>Change Password</h2>
+            <input type="password" id="oldPass" placeholder="Current Password">
+            <input type="password" id="newPass" placeholder="New Password">
+            <button onclick="savePassword()">Update Password</button>
+            <p id="passError" class="error"></p>
+        </div>
+    </div>
+
+    <div id="bannerModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('bannerModal')">&times;</span>
+            <h2>Edit Banner</h2>
+            <label>Banner Text:</label>
+            <input type="text" id="editBannerText">
+            <label>Upload Image (PNG/JPEG):</label>
+            <input type="file" id="editBannerFile" accept="image/*">
+            <label>OR Image Link (URL):</label>
+            <input type="text" id="editBannerImg">
+            <button onclick="saveBanner()">Save Changes</button>
+        </div>
+    </div>
+
+    <div id="aboutModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('aboutModal')">&times;</span>
+            <h2>Edit About Us</h2>
+            <label>About Us Content:</label>
+            <textarea id="editAboutText" rows="6"></textarea>
+            <button onclick="saveAbout()">Save Changes</button>
+        </div>
+    </div>
+
+    <div id="addModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('addModal')">&times;</span>
+            <h2>Add New Product</h2>
+            <label>Type:</label>
+            <select id="addType">
+                <option value="Cats">Cats</option>
+                <option value="Dogs">Dogs</option>
+                <option value="Accessories">Accessories</option>
+            </select>
+            <label>Category:</label>
+            <select id="addCategory">
+                <option value="Snack">Snack</option>
+                <option value="Food">Food</option>
+                <option value="Medicine">Medicine</option>
+                <option value="Bowls">Bowls</option>
+                <option value="Toys">Toys</option>
+                <option value="Gear">Gear</option>
+            </select>
+            <label>Product Name:</label>
+            <input type="text" id="addName">
+            <label>Upload Image (PNG/JPEG):</label>
+            <input type="file" id="addImgFile" accept="image/*">
+            <label>OR Image Link (URL):</label>
+            <input type="text" id="addImg">
+            <label>Price:</label>
+            <input type="text" id="addPrice" placeholder="$0.00">
+            <label>Expiry Date:</label>
+            <input type="text" id="addExp" placeholder="YYYY-MM-DD or N/A">
+            <label>Specs:</label>
+            <textarea id="addSpecs"></textarea>
+            <button onclick="saveNewProduct()">Add Product</button>
+        </div>
+    </div>
+
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('editModal')">&times;</span>
+            <h2>Edit Product</h2>
+            <input type="hidden" id="editId">
+            <label>Upload Image (PNG/JPEG):</label>
+            <input type="file" id="editImgFile" accept="image/*">
+            <label>OR Image Link (URL):</label>
+            <input type="text" id="editImg">
+            <label>Price:</label>
+            <input type="text" id="editPrice">
+            <label>Expiry Date:</label>
+            <input type="text" id="editExp">
+            <label>Specs:</label>
+            <textarea id="editSpecs"></textarea>
+            <button onclick="saveEdit()">Save Changes</button>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
