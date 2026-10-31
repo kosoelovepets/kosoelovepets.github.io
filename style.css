@@ -71,3 +71,15 @@ input, textarea, select { padding: 10px; border: 1px solid #ddd; border-radius: 
 .error { color: #ff4757; font-size: 13px; }
 button:not(.close):not(.buy-btn) { background-color: #333; color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: bold; margin-top: 10px; }
 button:not(.close):not(.buy-btn):hover { background-color: #555; }
+/* Mobile Responsiveness Fixes */
+@media (max-width: 768px) {
+    .header-top { flex-direction: column; gap: 15px; text-align: center; }
+    .header-controls { flex-direction: column; width: 100%; }
+    #searchInput, #searchInput:focus { width: 100%; max-width: 300px; }
+    .main-menu { flex-wrap: wrap; padding: 5px 0; }
+    .main-menu > li { padding: 10px 15px; }
+    .main-menu > li > a { font-size: 15px; }
+    .banner-text { font-size: 18px; padding: 15px; width: 90%; }
+    .footer-content { flex-direction: column; text-align: center; }
+    .footer-content h3 { justify-content: center; gap: 15px; }
+}
