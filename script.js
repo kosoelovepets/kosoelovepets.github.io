@@ -335,24 +335,39 @@ function removeCartItem(id) {
     processCartStateChange();
 }
 
+// CENTRALIZED STATE MANAGER: The single source of truth
 function processCartStateChange() {
     localStorage.setItem('kosoepets_cart_v74', JSON.stringify(cart));
-    updateCartCount();
+    updateCartCount(); // Instantly update the top-right icon
+    
+    // Instantly update the cart modal if it is currently open
     if (document.getElementById('cartModal').style.display === 'block') {
-        renderCartItems();
+        renderCartItems(); 
     }
 }
 
+// MULTI-TAB SYNC: Instantly updates UI if cart changes in another open tab
+window.addEventListener('storage', (e) => {
+    if (e.key === 'kosoepets_cart_v74') {
+        cart = JSON.parse(e.newValue) || [];
+        updateCartCount();
+        if (document.getElementById('cartModal').style.display === 'block') {
+            renderCartItems();
+        }
+    }
+});
+
+// CART COUNTER: Calculates exact sum of all quantities
 function updateCartCount() {
     const count = cart.reduce((sum, item) => sum + item.qty, 0);
     const counterBadge = document.getElementById('cartCount');
     counterBadge.innerText = count;
     
-    // Quick scale animation
+    // Subtle visual "pop" effect to confirm the addition
     counterBadge.parentElement.style.transform = 'scale(1.2)';
     setTimeout(() => {
         counterBadge.parentElement.style.transform = 'scale(1)';
-    }, 200);
+    }, 150);
 }
 
 function openCartModal() {
@@ -376,7 +391,7 @@ function renderCartItems() {
             listEl.innerHTML += `
                 <div class="cart-item">
                     <div class="cart-item-info">
-                        <img src="${item.img}" alt="${item.name}">
+                        <img src="${item.img}" alt="${item.name}" onerror="this.style.display='none'">
                         <span>${item.name}<br><small>${Number(item.price).toLocaleString()} MMK</small></span>
                     </div>
                     <div class="cart-qty-controls">
