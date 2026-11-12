@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ko Soe Love Pets - v7.3</title>
+    <title>Ko Soe Love Pets - v7.4</title>
     <!-- Google Fonts for friendly, lovely atmosphere -->
     <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -17,10 +17,13 @@
         <i class="fa fa-info-circle"></i> <span id="sysBannerText">Preview Mode: Supabase connection pending. Please configure your API keys in script.js.</span>
     </div>
 
+    <!-- Notification Toast -->
+    <div id="toastNotification" class="toast hidden">Successfully added to your cart!</div>
+
     <header>
         <div class="header-top">
             <div class="logo-container">
-                <h1><span style="color:#ff758c;">●</span> Ko Soe <span style="color:#ff9a9e;">Love Pets</span> <small class="version-badge">v7.3</small></h1>
+                <h1><span style="color:#ff758c;">●</span> Ko Soe <span style="color:#ff9a9e;">Love Pets</span> <small class="version-badge">v7.4</small></h1>
             </div>
             <div class="header-controls">
                 <input type="text" id="searchInput" placeholder="Search products...">
@@ -129,6 +132,16 @@
                 </div>
             </div>
             <button type="button" id="viberBuyBtn" class="buy-viber-btn" onclick="redirectToViber()"><i class="fab fa-viber"></i> <span data-i18n="buy_viber">Buy via Viber</span></button>
+        </div>
+    </div>
+    
+    <!-- Image Zoom Modal -->
+    <div id="imageZoomModal" class="modal" onclick="handleOutsideModalClick(event, 'imageZoomModal')">
+        <div class="modal-content zoom-modal-content">
+            <div class="modal-top-bar end">
+                <button type="button" class="close-btn" onclick="closeModal('imageZoomModal')" aria-label="Close">&times;</button>
+            </div>
+            <img id="zoomedImg" src="" alt="Zoomed Product Image">
         </div>
     </div>
 

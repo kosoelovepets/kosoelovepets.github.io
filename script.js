@@ -1,9 +1,9 @@
 // ==========================================
 // 1. SUPABASE CONFIGURATION (Backend Sync)
 // ==========================================
-const APP_VERSION = 'v7.3';
+const APP_VERSION = 'v7.4';
 const SUPABASE_URL = 'https://moggsrqzhygvavsdcanh.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1vZ2dzcnF6aHlndmF2c2RjYW5oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ0NzE0NzYsImV4cCI6MjExMDA0NzQ3Nn0.l8Et78xU1eo6f7UND-0ONHPPJfM_oJ-qEMyKUAZoPIU';
+const SUPABASE_ANON_KEY = 'YOUR_LEGACY_ANON_PUBLIC_KEY_HERE';
 
 let supabaseClient = null;
 let useLocalFallback = false;
@@ -80,9 +80,9 @@ function switchLanguage() {
 // ==========================================
 let products = [];
 let currentProducts = [];
-let cart = JSON.parse(localStorage.getItem('kosoepets_cart_v73')) || [];
+let cart = JSON.parse(localStorage.getItem('kosoepets_cart_v74')) || [];
 let isAdmin = false;
-let currentAdminPass = localStorage.getItem('kosoepets_pass_v73') || 'admin';
+let currentAdminPass = localStorage.getItem('kosoepets_pass_v74') || 'admin';
 
 const productGrid = document.getElementById('productGrid');
 const searchInput = document.getElementById('searchInput');
@@ -91,8 +91,8 @@ const categoryTitle = document.getElementById('categoryTitle');
 document.addEventListener('DOMContentLoaded', () => {
     initBanner();
     
-    if (localStorage.getItem('kosoepets_about_v73')) document.getElementById('aboutTextEl').innerText = localStorage.getItem('kosoepets_about_v73');
-    let savedContact = JSON.parse(localStorage.getItem('kosoepets_contact_v73'));
+    if (localStorage.getItem('kosoepets_about_v74')) document.getElementById('aboutTextEl').innerText = localStorage.getItem('kosoepets_about_v74');
+    let savedContact = JSON.parse(localStorage.getItem('kosoepets_contact_v74'));
     if (savedContact) {
         let cleanPhone = savedContact.phone.replace(/[^0-9+]/g, '');
         document.getElementById('contactPhoneEl').href = `tel:${cleanPhone}`;
@@ -131,18 +131,31 @@ function sortNewestFirst(list) {
     return list.sort((a, b) => (Number(b.created_at) || Number(b.id) || 0) - (Number(a.created_at) || Number(a.id) || 0));
 }
 
+function showToast() {
+    const toast = document.getElementById('toastNotification');
+    toast.classList.remove('hidden');
+    setTimeout(() => {
+        toast.classList.add('hidden');
+    }, 2500);
+}
+
+function openImageZoom(imgUrl) {
+    document.getElementById('zoomedImg').src = imgUrl;
+    document.getElementById('imageZoomModal').style.display = 'flex';
+}
+
 // ==========================================
 // 3.5 BANNER SLIDESHOW LOGIC
 // ==========================================
-let bannerImages = JSON.parse(localStorage.getItem('kosoepets_banner_imgs_v73')) || [
+let bannerImages = JSON.parse(localStorage.getItem('kosoepets_banner_imgs_v74')) || [
     'https://images.unsplash.com/photo-1541364983171-a8ba01e95cfc?auto=format&fit=crop&w=1200&q=80'
 ];
 let bannerSlideIdx = 0;
 let bannerInterval = null;
 
 function initBanner() {
-    if (localStorage.getItem('kosoepets_banner_txt_v73')) {
-        document.getElementById('bannerTextEl').innerText = localStorage.getItem('kosoepets_banner_txt_v73');
+    if (localStorage.getItem('kosoepets_banner_txt_v74')) {
+        document.getElementById('bannerTextEl').innerText = localStorage.getItem('kosoepets_banner_txt_v74');
     }
     renderBannerSlideshow();
 }
@@ -224,10 +237,10 @@ function saveBanner() {
     }
 
     try {
-        localStorage.setItem('kosoepets_banner_imgs_v73', JSON.stringify(newImgs));
+        localStorage.setItem('kosoepets_banner_imgs_v74', JSON.stringify(newImgs));
         bannerImages = newImgs;
         if(txt) {
-            localStorage.setItem('kosoepets_banner_txt_v73', txt);
+            localStorage.setItem('kosoepets_banner_txt_v74', txt);
             document.getElementById('bannerTextEl').innerText = txt;
         }
         renderBannerSlideshow();
@@ -243,7 +256,7 @@ function saveBanner() {
 // ==========================================
 async function fetchProducts() {
     if (useLocalFallback) {
-        let stored = localStorage.getItem('kosoepets_products_v73');
+        let stored = localStorage.getItem('kosoepets_products_v74');
         products = stored ? JSON.parse(stored) : [
             { id: 1, type: 'Cats', category: 'Food', name: 'ကြောင်စာ (Premium Dry Cat Food)', price: 25000, exp: '2028-05-01', img: 'https://images.unsplash.com/photo-1574635677940-d98c25dbff45?auto=format&fit=crop&w=400&q=80', specs: 'ထိုင်းနိုင်ငံထုတ် ကြောင်ကလေးတွေအရမ်းကြိုက်', created_at: 1731400001000 },
             { id: 2, type: 'Dogs', category: 'Snack', name: 'Beef Chew Bones (အမဲရိုးသရေစာ)', price: 8500, exp: '2027-08-11', img: 'https://images.unsplash.com/photo-1589924691995-400dc9ecc119?auto=format&fit=crop&w=400&q=80', specs: 'သွားသန့်ရှင်းစေပြီး အကြာကြီးဝါးနိုင်သည်', created_at: 1731400002000 },
@@ -302,7 +315,7 @@ function addToCart(id) {
             cart.push({ ...item, qty: 1 });
         }
         processCartStateChange();
-        alert(`${item.name} added to cart!`);
+        showToast();
     }
 }
 
@@ -323,7 +336,7 @@ function removeCartItem(id) {
 }
 
 function processCartStateChange() {
-    localStorage.setItem('kosoepets_cart_v73', JSON.stringify(cart));
+    localStorage.setItem('kosoepets_cart_v74', JSON.stringify(cart));
     updateCartCount();
     if (document.getElementById('cartModal').style.display === 'block') {
         renderCartItems();
@@ -331,7 +344,15 @@ function processCartStateChange() {
 }
 
 function updateCartCount() {
-    document.getElementById('cartCount').innerText = cart.reduce((sum, item) => sum + item.qty, 0);
+    const count = cart.reduce((sum, item) => sum + item.qty, 0);
+    const counterBadge = document.getElementById('cartCount');
+    counterBadge.innerText = count;
+    
+    // Quick scale animation
+    counterBadge.parentElement.style.transform = 'scale(1.2)';
+    setTimeout(() => {
+        counterBadge.parentElement.style.transform = 'scale(1)';
+    }, 200);
 }
 
 function openCartModal() {
@@ -553,7 +574,7 @@ function renderProducts(items) {
             </div>` : '';
 
         card.innerHTML = `
-            <img src="${item.img}" alt="${item.name}" class="product-img">
+            <img src="${item.img}" alt="${item.name}" class="product-img" onclick="openImageZoom('${item.img}')">
             <div class="product-info">
                 <h3>${item.name}</h3>
                 <p class="price">${Number(item.price).toLocaleString()} MMK</p>
@@ -653,7 +674,7 @@ function savePassword() {
         return;
     }
     currentAdminPass = newP;
-    localStorage.setItem('kosoepets_pass_v73', newP);
+    localStorage.setItem('kosoepets_pass_v74', newP);
     closeModal('passModal');
     alert('Password updated successfully!');
 }
@@ -696,7 +717,7 @@ async function saveNewProduct() {
     if (useLocalFallback) {
         newProd.id = Date.now();
         products.unshift(newProd);
-        localStorage.setItem('kosoepets_products_v73', JSON.stringify(products));
+        localStorage.setItem('kosoepets_products_v74', JSON.stringify(products));
         fetchProducts();
     } else {
         const { error } = await supabaseClient.from('products').insert([newProd]);
@@ -723,7 +744,7 @@ async function saveEdit() {
         let index = products.findIndex(p => Number(p.id) === id);
         if (index > -1) {
             products[index] = { ...products[index], ...updates };
-            localStorage.setItem('kosoepets_products_v73', JSON.stringify(products));
+            localStorage.setItem('kosoepets_products_v74', JSON.stringify(products));
             fetchProducts();
         }
     } else {
@@ -741,7 +762,7 @@ async function deleteProduct(id) {
     if (confirm('Are you sure you want to delete this product?')) {
         if (useLocalFallback) {
             products = products.filter(p => Number(p.id) !== Number(id));
-            localStorage.setItem('kosoepets_products_v73', JSON.stringify(products));
+            localStorage.setItem('kosoepets_products_v74', JSON.stringify(products));
             fetchProducts();
         } else {
             const { error } = await supabaseClient.from('products').delete().eq('id', id);
@@ -762,7 +783,7 @@ function openAboutEdit() {
 function saveAbout() {
     const txt = document.getElementById('editAboutText').value.trim();
     document.getElementById('aboutTextEl').innerText = txt;
-    localStorage.setItem('kosoepets_about_v73', txt);
+    localStorage.setItem('kosoepets_about_v74', txt);
     closeModal('aboutModal');
 }
 function openContactEdit() {
@@ -785,6 +806,6 @@ function saveContact() {
     document.getElementById('fbLinkEl').href = fb;
     document.getElementById('tiktokLinkEl').href = tiktok;
     
-    localStorage.setItem('kosoepets_contact_v73', JSON.stringify({ phone, email, fb, tiktok }));
+    localStorage.setItem('kosoepets_contact_v74', JSON.stringify({ phone, email, fb, tiktok }));
     closeModal('contactModal');
 }
