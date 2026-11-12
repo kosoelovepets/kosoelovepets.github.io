@@ -15,36 +15,38 @@
             </div>
             <div class="header-controls">
                 <input type="text" id="searchInput" placeholder="Search products, categories...">
-                <div id="cartCounter" class="cart-counter" onclick="openCartModal()">
-                    <i class="fa fa-shopping-cart"></i> <span id="cartCount">0</span>
+                <div class="header-buttons">
+                    <div id="cartCounter" class="cart-counter" onclick="openCartModal()">
+                        <i class="fa fa-shopping-cart"></i> <span id="cartCount">0</span>
+                    </div>
+                    <button id="changePassBtn" class="admin-btn hidden" onclick="openChangePass()"><i class="fa fa-key"></i> Password</button>
+                    <button id="loginBtn" class="login-btn">Admin Login</button>
+                    <button id="logoutBtn" class="login-btn hidden">Logout</button>
                 </div>
-                <button id="changePassBtn" class="admin-btn hidden" onclick="openChangePass()"><i class="fa fa-key"></i> Password</button>
-                <button id="loginBtn" class="login-btn">Admin Login</button>
-                <button id="logoutBtn" class="login-btn hidden">Logout</button>
             </div>
         </div>
         <nav>
             <ul class="main-menu">
-                <li><a href="#" class="menu-link" onclick="goHome()">Home</a></li>
-                <li><a href="#" class="menu-link">Cats</a>
+                <li><a href="javascript:void(0)" class="menu-link" onclick="goHome()">Home</a></li>
+                <li class="has-sub"><a href="javascript:void(0)" class="menu-link" onclick="toggleSubMenu(event, this)">Cats <i class="fa fa-chevron-down" style="font-size:12px;"></i></a>
                     <ul class="sub-menu">
-                        <li><a href="#" onclick="filterProducts('Cats', 'Snack')">Snack</a></li>
-                        <li><a href="#" onclick="filterProducts('Cats', 'Food')">Food</a></li>
-                        <li><a href="#" onclick="filterProducts('Cats', 'Medicine')">Medicine</a></li>
+                        <li><a href="javascript:void(0)" onclick="filterProducts('Cats', 'Snack')">Snack</a></li>
+                        <li><a href="javascript:void(0)" onclick="filterProducts('Cats', 'Food')">Food</a></li>
+                        <li><a href="javascript:void(0)" onclick="filterProducts('Cats', 'Medicine')">Medicine</a></li>
                     </ul>
                 </li>
-                <li><a href="#" class="menu-link">Dogs</a>
+                <li class="has-sub"><a href="javascript:void(0)" class="menu-link" onclick="toggleSubMenu(event, this)">Dogs <i class="fa fa-chevron-down" style="font-size:12px;"></i></a>
                     <ul class="sub-menu">
-                        <li><a href="#" onclick="filterProducts('Dogs', 'Snack')">Snack</a></li>
-                        <li><a href="#" onclick="filterProducts('Dogs', 'Food')">Food</a></li>
-                        <li><a href="#" onclick="filterProducts('Dogs', 'Medicine')">Medicine</a></li>
+                        <li><a href="javascript:void(0)" onclick="filterProducts('Dogs', 'Snack')">Snack</a></li>
+                        <li><a href="javascript:void(0)" onclick="filterProducts('Dogs', 'Food')">Food</a></li>
+                        <li><a href="javascript:void(0)" onclick="filterProducts('Dogs', 'Medicine')">Medicine</a></li>
                     </ul>
                 </li>
-                <li><a href="#" class="menu-link">Accessories</a>
+                <li class="has-sub"><a href="javascript:void(0)" class="menu-link" onclick="toggleSubMenu(event, this)">Accessories <i class="fa fa-chevron-down" style="font-size:12px;"></i></a>
                     <ul class="sub-menu">
-                        <li><a href="#" onclick="filterProducts('Accessories', 'Bowls')">Bowls</a></li>
-                        <li><a href="#" onclick="filterProducts('Accessories', 'Toys')">Toys</a></li>
-                        <li><a href="#" onclick="filterProducts('Accessories', 'Gear')">Gear</a></li>
+                        <li><a href="javascript:void(0)" onclick="filterProducts('Accessories', 'Bowls')">Bowls</a></li>
+                        <li><a href="javascript:void(0)" onclick="filterProducts('Accessories', 'Toys')">Toys</a></li>
+                        <li><a href="javascript:void(0)" onclick="filterProducts('Accessories', 'Gear')">Gear</a></li>
                     </ul>
                 </li>
             </ul>
@@ -75,11 +77,11 @@
             </div>
             <div class="contact-section">
                 <h3>Contact Us <button id="editContactBtn" class="admin-btn hidden" onclick="openContactEdit()"><i class="fa fa-edit"></i> Edit</button></h3>
-                <p id="contactPhoneEl"><i class="fa fa-phone" style="color:#ff9a9e;"></i> +95 9 123 456 789</p>
+                <p id="contactPhoneEl"><i class="fa fa-phone" style="color:#ff9a9e;"></i> +95 9 262 597 2117</p>
                 <p id="contactEmailEl"><i class="fa fa-envelope" style="color:#ff9a9e;"></i> contact@kosoelovepets.com</p>
                 <div class="social-links">
                     <a id="fbLinkEl" href="https://facebook.com" target="_blank"><i class="fab fa-facebook"></i> Facebook</a>
-                    <a id="tiktokLinkEl" href="https://tiktok.com" target="_blank"><i class="fab fa-tiktok"></i> TikTok</a>
+                    <a id="tiktokLinkEl" href="https://www.tiktok.com/@ko.soe1376" target="_blank"><i class="fab fa-tiktok"></i> TikTok</a>
                 </div>
             </div>
         </div>

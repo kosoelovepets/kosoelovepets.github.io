@@ -1,10 +1,9 @@
-
-const STORE_PRODUCTS = 'kosoepets_products_v5';
-const STORE_PASS = 'kosoepets_pass_v5';
-const STORE_BANNER_IMG = 'kosoepets_banner_img_v5';
-const STORE_BANNER_TXT = 'kosoepets_banner_txt_v5';
-const STORE_ABOUT = 'kosoepets_about_v5';
-const STORE_CONTACT = 'kosoepets_contact_v5';
+const STORE_PRODUCTS = 'kosoepets_products_v7';
+const STORE_PASS = 'kosoepets_pass_v7';
+const STORE_BANNER_IMG = 'kosoepets_banner_img_v7';
+const STORE_BANNER_TXT = 'kosoepets_banner_txt_v7';
+const STORE_ABOUT = 'kosoepets_about_v7';
+const STORE_CONTACT = 'kosoepets_contact_v7';
 
 const defaultProducts = [
     { id: 1, type: 'Cats', category: 'Snack', name: 'Tuna Bites', price: '$5.99', exp: '2027-12-01', img: 'https://images.unsplash.com/photo-1583337130417-3346a1be7dee?auto=format&fit=crop&w=400&q=80', specs: 'Healthy tuna flavor.' },
@@ -63,9 +62,28 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('tiktokLinkEl').href = savedContact.tiktok;
     }
     
+    // Close mobile sub-menus when tapping outside
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.has-sub')) {
+            document.querySelectorAll('.has-sub').forEach(el => el.classList.remove('open'));
+        }
+    });
+
     updateCartCount();
     renderProducts(products);
 });
+
+// Mobile Sub-menu Toggle
+function toggleSubMenu(e, linkEl) {
+    e.preventDefault();
+    e.stopPropagation();
+    const parentLi = linkEl.parentElement;
+    const wasOpen = parentLi.classList.contains('open');
+    document.querySelectorAll('.has-sub').forEach(el => el.classList.remove('open'));
+    if (!wasOpen) {
+        parentLi.classList.add('open');
+    }
+}
 
 // File Upload Handlers
 function attachFileHandler(inputId, targetUrlId) {
@@ -168,11 +186,13 @@ searchInput.addEventListener('input', (e) => {
 
 // Navigation
 function goHome() {
+    document.querySelectorAll('.has-sub').forEach(el => el.classList.remove('open'));
     searchInput.value = ''; categoryTitle.innerText = 'All Hot Items';
     currentProducts = products; renderProducts(products);
 }
 
 function filterProducts(type, category) {
+    document.querySelectorAll('.has-sub').forEach(el => el.classList.remove('open'));
     searchInput.value = ''; categoryTitle.innerText = `${type} - ${category}`;
     const filtered = products.filter(p => p.type === type && p.category === category);
     currentProducts = filtered; renderProducts(filtered);
@@ -197,7 +217,7 @@ function refreshCurrentView() {
 function renderProducts(items) {
     productGrid.innerHTML = '';
     if(items.length === 0) {
-        productGrid.innerHTML = '<p style="grid-column: 1/-1; text-align: center; font-size: 18px;">No items found.</p>'; return;
+        productGrid.innerHTML = '<p style="grid-column: 1/-1; text-align: center; font-size: 16px;">No items found.</p>'; return;
     }
     items.forEach(item => {
         const card = document.createElement('div');
@@ -208,7 +228,7 @@ function renderProducts(items) {
             adminHtml = `
             <div class="card-admin-actions">
                 <button class="edit-btn" onclick="openEdit(${item.id})"><i class="fa fa-edit"></i> Edit</button>
-                <button class="delete-btn" onclick="deleteProduct(${item.id})"><i class="fa fa-trash"></i> Delete</button>
+                <button class="delete-btn" onclick="deleteProduct(${item.id})"><i class="fa fa-trash"></i> Del</button>
             </div>`;
         }
 
@@ -217,8 +237,8 @@ function renderProducts(items) {
             <div class="product-info">
                 <h3>${item.name}</h3>
                 <p class="price">${item.price}</p>
-                <p><strong>Exp:</strong> ${item.exp}</p>
-                <p>${item.specs}</p>
+                <p class="product-meta"><strong>Exp:</strong> ${item.exp}</p>
+                <p class="product-meta">${item.specs}</p>
                 <button class="buy-btn" onclick="addToCart(${item.id})">🛒 Add to Cart</button>
                 ${adminHtml}
             </div>
