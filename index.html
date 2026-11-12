@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ko Soe Love Pets</title>
+    <title>Ko Soe Love Pets - v7.2</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
     <!-- Supabase CDN -->
@@ -18,7 +18,7 @@
     <header>
         <div class="header-top">
             <div class="logo-container">
-                <h1><span style="color:#ff758c;">●</span> Ko Soe <span style="color:#ff9a9e;">Love Pets</span></h1>
+                <h1><span style="color:#ff758c;">●</span> Ko Soe <span style="color:#ff9a9e;">Love Pets</span> <small class="version-badge">v7.2</small></h1>
             </div>
             <div class="header-controls">
                 <input type="text" id="searchInput" placeholder="Search products...">
@@ -31,8 +31,8 @@
                         <i class="fa fa-shopping-cart"></i> <span id="cartCount">0</span>
                     </div>
                     <button id="changePassBtn" class="admin-btn hidden" onclick="openChangePass()"><i class="fa fa-key"></i> <span data-i18n="password">Password</span></button>
-                    <button id="loginBtn" class="login-btn" data-i18n="admin_login">Admin Login</button>
-                    <button id="logoutBtn" class="login-btn hidden" data-i18n="logout">Logout</button>
+                    <button id="loginBtn" class="login-btn" onclick="openLoginModal()" data-i18n="admin_login">Admin Login</button>
+                    <button id="logoutBtn" class="login-btn hidden" onclick="logout()" data-i18n="logout">Logout</button>
                 </div>
             </div>
         </div>
@@ -99,31 +99,41 @@
     </footer>
 
     <!-- Cart Modal -->
-    <div id="cartModal" class="modal">
+    <div id="cartModal" class="modal" onclick="handleOutsideModalClick(event, 'cartModal')">
         <div class="modal-content cart-modal-content">
-            <span class="close" onclick="closeModal('cartModal')">&times;</span>
+            <div class="modal-top-bar">
+                <button type="button" class="pdf-btn" onclick="downloadCartPDF()"><i class="fa fa-file-pdf"></i> <span data-i18n="download_pdf">Download PDF</span></button>
+                <button type="button" class="close-btn" onclick="closeModal('cartModal')" aria-label="Close">&times;</button>
+            </div>
             <h2 data-i18n="cart_title">Your Cart</h2>
             <div class="cart-header">
                 <span data-i18n="product">Product</span>
                 <span data-i18n="qty">Qty</span>
                 <span data-i18n="total">Total (MMK)</span>
+                <span></span>
             </div>
             <div id="cartItemsList" class="cart-items-container">
                 <p style="text-align:center;" data-i18n="cart_empty">Your cart is empty.</p>
             </div>
-            <div class="cart-grand-total">
-                <strong data-i18n="grand_total">Grand Total:</strong> 
-                <span id="cartGrandTotal">0 MMK</span>
+            <div class="cart-summary-box">
+                <div class="cart-discount">
+                    <span data-i18n="discount">Discount:</span> <span>0 MMK</span>
+                </div>
+                <div class="cart-grand-total">
+                    <strong data-i18n="grand_total">Grand Total:</strong> 
+                    <span id="cartGrandTotal">0 MMK</span>
+                </div>
             </div>
-            <button id="viberBuyBtn" class="buy-viber-btn" onclick="redirectToViber()"><i class="fab fa-viber"></i> <span data-i18n="buy_viber">Buy via Viber</span></button>
+            <button type="button" id="viberBuyBtn" class="buy-viber-btn" onclick="redirectToViber()"><i class="fab fa-viber"></i> <span data-i18n="buy_viber">Buy via Viber</span></button>
         </div>
     </div>
 
-    <!-- Admin Logic Modals (Abbreviated UI matching v7 logic with new fields) -->
     <!-- Add Product Modal -->
-    <div id="addModal" class="modal">
+    <div id="addModal" class="modal" onclick="handleOutsideModalClick(event, 'addModal')">
         <div class="modal-content">
-            <span class="close" onclick="closeModal('addModal')">&times;</span>
+            <div class="modal-top-bar end">
+                <button type="button" class="close-btn" onclick="closeModal('addModal')" aria-label="Close">&times;</button>
+            </div>
             <h2 data-i18n="add_new">Add New Product</h2>
             <label>Type:</label>
             <select id="addType"><option value="Cats">Cats</option><option value="Dogs">Dogs</option><option value="Accessories">Accessories</option></select>
@@ -141,15 +151,20 @@
             <input type="text" id="addExp" placeholder="YYYY-MM-DD or N/A">
             <label>Specs:</label>
             <textarea id="addSpecs"></textarea>
-            <button onclick="saveNewProduct()">Save Product</button>
+            <button type="button" onclick="saveNewProduct()">Save Product</button>
         </div>
     </div>
 
-    <div id="editModal" class="modal">
+    <!-- Edit Product Modal -->
+    <div id="editModal" class="modal" onclick="handleOutsideModalClick(event, 'editModal')">
         <div class="modal-content">
-            <span class="close" onclick="closeModal('editModal')">&times;</span>
+            <div class="modal-top-bar end">
+                <button type="button" class="close-btn" onclick="closeModal('editModal')" aria-label="Close">&times;</button>
+            </div>
             <h2>Edit Product</h2>
             <input type="hidden" id="editId">
+            <label>Product Name:</label>
+            <input type="text" id="editName">
             <label>Upload Image (Max 5MB):</label>
             <input type="file" id="editImgFile" accept="image/*">
             <label>OR Image Link (URL):</label>
@@ -160,13 +175,86 @@
             <input type="text" id="editExp">
             <label>Specs:</label>
             <textarea id="editSpecs"></textarea>
-            <button onclick="saveEdit()">Save Changes</button>
+            <button type="button" onclick="saveEdit()">Save Changes</button>
         </div>
     </div>
 
-    <!-- Login, Password, Banner, About, Contact Modals (Hidden structure) -->
-    <div id="loginModal" class="modal"><div class="modal-content"><span class="close" onclick="closeModal('loginModal')">&times;</span><h2>Admin Login</h2><input type="text" id="username" placeholder="Username (admin)"><input type="password" id="password" placeholder="Password"><button onclick="login()">Login</button><p id="loginError" class="error"></p></div></div>
-    
+    <!-- Login Modal -->
+    <div id="loginModal" class="modal" onclick="handleOutsideModalClick(event, 'loginModal')">
+        <div class="modal-content">
+            <div class="modal-top-bar end">
+                <button type="button" class="close-btn" onclick="closeModal('loginModal')" aria-label="Close">&times;</button>
+            </div>
+            <h2 data-i18n="admin_login">Admin Login</h2>
+            <input type="text" id="username" placeholder="Username (admin)" autocomplete="username">
+            <input type="password" id="password" placeholder="Password" autocomplete="current-password" onkeydown="if(event.key==='Enter') login()">
+            <button type="button" onclick="login()">Login</button>
+            <p id="loginError" class="error"></p>
+        </div>
+    </div>
+
+    <!-- Change Password Modal -->
+    <div id="passModal" class="modal" onclick="handleOutsideModalClick(event, 'passModal')">
+        <div class="modal-content">
+            <div class="modal-top-bar end">
+                <button type="button" class="close-btn" onclick="closeModal('passModal')" aria-label="Close">&times;</button>
+            </div>
+            <h2>Change Password</h2>
+            <input type="password" id="oldPass" placeholder="Current Password">
+            <input type="password" id="newPass" placeholder="New Password">
+            <button type="button" onclick="savePassword()">Update Password</button>
+            <p id="passError" class="error"></p>
+        </div>
+    </div>
+
+    <!-- Edit Banner Modal -->
+    <div id="bannerModal" class="modal" onclick="handleOutsideModalClick(event, 'bannerModal')">
+        <div class="modal-content">
+            <div class="modal-top-bar end">
+                <button type="button" class="close-btn" onclick="closeModal('bannerModal')" aria-label="Close">&times;</button>
+            </div>
+            <h2>Edit Banner</h2>
+            <label>Banner Text:</label>
+            <input type="text" id="editBannerText">
+            <label>Upload Image (Max 5MB):</label>
+            <input type="file" id="editBannerFile" accept="image/*">
+            <label>OR Image Link (URL):</label>
+            <input type="text" id="editBannerImg">
+            <button type="button" onclick="saveBanner()">Save Changes</button>
+        </div>
+    </div>
+
+    <!-- Edit About Modal -->
+    <div id="aboutModal" class="modal" onclick="handleOutsideModalClick(event, 'aboutModal')">
+        <div class="modal-content">
+            <div class="modal-top-bar end">
+                <button type="button" class="close-btn" onclick="closeModal('aboutModal')" aria-label="Close">&times;</button>
+            </div>
+            <h2>Edit About Us</h2>
+            <textarea id="editAboutText" rows="5"></textarea>
+            <button type="button" onclick="saveAbout()">Save Changes</button>
+        </div>
+    </div>
+
+    <!-- Edit Contact Modal -->
+    <div id="contactModal" class="modal" onclick="handleOutsideModalClick(event, 'contactModal')">
+        <div class="modal-content">
+            <div class="modal-top-bar end">
+                <button type="button" class="close-btn" onclick="closeModal('contactModal')" aria-label="Close">&times;</button>
+            </div>
+            <h2>Edit Contact Us</h2>
+            <label>Phone:</label>
+            <input type="text" id="editPhone">
+            <label>Email:</label>
+            <input type="text" id="editEmail">
+            <label>Facebook URL:</label>
+            <input type="text" id="editFb">
+            <label>TikTok URL:</label>
+            <input type="text" id="editTiktok">
+            <button type="button" onclick="saveContact()">Save Changes</button>
+        </div>
+    </div>
+
     <script src="script.js"></script>
 </body>
 </html>

@@ -1,29 +1,15 @@
 // ==========================================
 // 1. SUPABASE CONFIGURATION (Backend Sync)
 // ==========================================
+const APP_VERSION = 'v7.2';
 const SUPABASE_URL = 'https://moggsrqzhygvavsdcanh.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1vZ2dzcnF6aHlndmF2c2RjYW5oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ0NzE0NzYsImV4cCI6MjExMDA0NzQ3Nn0.l8Et78xU1eo6f7UND-0ONHPPJfM_oJ-qEMyKUAZoPIU';
+const SUPABASE_ANON_KEY = 'YOUR_LEGACY_ANON_PUBLIC_KEY_HERE';
 
 let supabaseClient = null;
 let useLocalFallback = false;
 
-const sampleProducts = [
-    // 3 Cats Items
-    { type: 'Cats', category: 'Food', name: 'Me-O Tuna Adult Cat Food (1.2kg)', price: 14500, exp: '2027-11-15', img: 'https://images.unsplash.com/photo-1574635677940-d98c25dbff45?auto=format&fit=crop&w=400&q=80', specs: 'Balanced nutrition with Taurine for healthy vision.', created_at: Date.now() },
-    { type: 'Cats', category: 'Snack', name: 'Ciao Churu Tuna Creamy Treats', price: 4500, exp: '2027-08-20', img: 'https://images.unsplash.com/photo-1583337130417-3346a1be7dee?auto=format&fit=crop&w=400&q=80', specs: '4 tubes per pack, grain-free lickable cat snack.', created_at: Date.now() - 100 },
-    { type: 'Cats', category: 'Medicine', name: 'Frontline Plus Flea & Tick Drops', price: 18000, exp: '2028-03-01', img: 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&w=400&q=80', specs: 'Fast-acting waterproof flea and tick protection.', created_at: Date.now() - 200 },
-    // 3 Dogs Items
-    { type: 'Dogs', category: 'Food', name: 'Pedigree Chicken & Vegetables (1.5kg)', price: 16500, exp: '2027-12-10', img: 'https://images.unsplash.com/photo-1583511655826-05700d52f4d9?auto=format&fit=crop&w=400&q=80', specs: 'Omega 6 & Zinc for healthy skin and shiny coat.', created_at: Date.now() - 300 },
-    { type: 'Dogs', category: 'Snack', name: 'JerHigh Milky Sticks Dog Snack', price: 5500, exp: '2027-09-05', img: 'https://images.unsplash.com/photo-1589924691995-400dc9ecc119?auto=format&fit=crop&w=400&q=80', specs: 'Made with real chicken meat, high protein.', created_at: Date.now() - 400 },
-    { type: 'Dogs', category: 'Medicine', name: 'Heartgard Plus Chewables', price: 22000, exp: '2028-05-12', img: 'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?auto=format&fit=crop&w=400&q=80', specs: 'Monthly beef-flavored heartworm preventive.', created_at: Date.now() - 500 },
-    // 3 Accessories Items
-    { type: 'Accessories', category: 'Bowls', name: 'Anti-Slip Double Pet Food Bowl', price: 9500, exp: 'N/A', img: 'https://images.unsplash.com/photo-1601758174114-e711c0cbea69?auto=format&fit=crop&w=400&q=80', specs: 'Stainless steel removable bowls for food & water.', created_at: Date.now() - 600 },
-    { type: 'Accessories', category: 'Toys', name: 'Interactive Feather Teaser Wand', price: 4000, exp: 'N/A', img: 'https://images.unsplash.com/photo-1596492784531-6e6eb5ea9993?auto=format&fit=crop&w=400&q=80', specs: 'Natural feathers with bell for indoor exercise.', created_at: Date.now() - 700 },
-    { type: 'Accessories', category: 'Gear', name: 'Adjustable Reflective Pet Harness', price: 13000, exp: 'N/A', img: 'https://images.unsplash.com/photo-1584362917165-526a968579e8?auto=format&fit=crop&w=400&q=80', specs: 'Breathable mesh chest vest with 1.5m leash.', created_at: Date.now() - 800 }
-];
-
 try {
-    if (SUPABASE_URL && SUPABASE_URL.startsWith('https://') && SUPABASE_ANON_KEY.startsWith('eyJ') && window.supabase) {
+    if (SUPABASE_URL && SUPABASE_URL.startsWith('https://') && SUPABASE_ANON_KEY && !SUPABASE_ANON_KEY.includes('YOUR_LEGACY') && window.supabase) {
         supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         document.getElementById('sysBanner').classList.add('hidden');
     } else {
@@ -48,10 +34,12 @@ const translations = {
         admin_login: "Admin Login", logout: "Logout", password: "Password",
         all_items: "All Hot Items", add_new: "Add New Product",
         about_us: "About Us", contact_us: "Contact Us",
-        cart_title: "Your Cart", product: "Product", qty: "Qty", total: "Total (MMK)", grand_total: "Grand Total:",
-        buy_viber: "Buy via Viber", cart_empty: "Your cart is empty.",
+        cart_title: "Your Cart", product: "Product", qty: "Qty", total: "Total (MMK)",
+        discount: "Discount:", grand_total: "Grand Total:",
+        buy_viber: "Buy via Viber", download_pdf: "Download PDF", cart_empty: "Your cart is empty.",
         img_limit: "File size exceeds the maximum limit of 5 MB. Please select another image.",
-        search_res: "Search Results for"
+        search_res: "Search Results for", no_match: "No matching products found.",
+        voucher_title: "Shopping Voucher", thank_you: "Thanks for your shopping!"
     },
     mm: {
         home: "ပင်မစာမျက်နှာ", cats: "ကြောင်များ", dogs: "ခွေးများ", accessories: "ဆက်စပ်ပစ္စည်းများ",
@@ -59,10 +47,12 @@ const translations = {
         admin_login: "စီမံခန့်ခွဲသူဝင်ရန်", logout: "ထွက်ရန်", password: "စကားဝှက်",
         all_items: "လူကြိုက်များသော ပစ္စည်းများ", add_new: "ထုတ်ကုန်အသစ်ထည့်ရန်",
         about_us: "ကျွန်ုပ်တို့အကြောင်း", contact_us: "ဆက်သွယ်ရန်",
-        cart_title: "သင့်စျေးခြင်းတောင်း", product: "ထုတ်ကုန်", qty: "အရေအတွက်", total: "စုစုပေါင်း (MMK)", grand_total: "စုစုပေါင်း ကျသင့်ငွေ:",
-        buy_viber: "Viber ဖြင့် ဝယ်မည်", cart_empty: "စျေးခြင်းတောင်း ဗလာဖြစ်နေပါသည်။",
+        cart_title: "သင့်စျေးခြင်းတောင်း", product: "ထုတ်ကုန်", qty: "အရေအတွက်", total: "စုစုပေါင်း (MMK)",
+        discount: "လျှော့စျေး:", grand_total: "စုစုပေါင်း ကျသင့်ငွေ:",
+        buy_viber: "Viber ဖြင့် ဝယ်မည်", download_pdf: "PDF ဒေါင်းလုဒ်ဆွဲရန်", cart_empty: "စျေးခြင်းတောင်း ဗလာဖြစ်နေပါသည်။",
         img_limit: "ဖိုင်အရွယ်အစားသည် အများဆုံး 5 MB ထက်ကျော်လွန်နေပါသည်။ ကျေးဇူးပြု၍ အခြားပုံတစ်ပုံကို ရွေးချယ်ပါ။",
-        search_res: "ရှာဖွေမှုရလဒ်များ -"
+        search_res: "ရှာဖွေမှုရလဒ်များ -", no_match: "ကိုက်ညီသော ထုတ်ကုန်မတွေ့ပါ။",
+        voucher_title: "အဝယ်ဘောက်ချာ", thank_you: "ဝယ်ယူအားပေးမှုအတွက် ကျေးဇူးတင်ပါသည်!"
     }
 };
 
@@ -74,34 +64,55 @@ function switchLanguage() {
             el.innerText = translations[currentLang][key];
         }
     });
-    if (categoryTitle.innerText.includes('Search Results') || categoryTitle.innerText.includes('ရှာဖွေမှုရလဒ်များ')) {
-        const term = searchInput.value.trim();
+    const term = searchInput.value.trim();
+    if (term !== '') {
         categoryTitle.innerText = `${translations[currentLang].search_res} "${term}"`;
-    } else if (searchInput.value === '') {
+    } else {
         categoryTitle.innerText = translations[currentLang].all_items;
+    }
+    if (document.getElementById('cartModal').style.display === 'block') {
+        renderCartItems();
     }
 }
 
 // ==========================================
-// 3. PRODUCT & SYNC STATE
+// 3. PRODUCT & SYNC STATE (Newest First)
 // ==========================================
 let products = [];
 let currentProducts = [];
-let cart = JSON.parse(localStorage.getItem('kosoepets_cart_v71')) || [];
+let cart = JSON.parse(localStorage.getItem('kosoepets_cart_v72')) || [];
 let isAdmin = false;
-let currentAdminPass = localStorage.getItem('kosoepets_pass_v71') || 'admin';
-let seededInitialData = false;
+let currentAdminPass = localStorage.getItem('kosoepets_pass_v72') || 'admin';
 
 const productGrid = document.getElementById('productGrid');
 const searchInput = document.getElementById('searchInput');
 const categoryTitle = document.getElementById('categoryTitle');
 
 document.addEventListener('DOMContentLoaded', () => {
+    if (localStorage.getItem('kosoepets_banner_img_v72')) document.getElementById('bannerImgEl').src = localStorage.getItem('kosoepets_banner_img_v72');
+    if (localStorage.getItem('kosoepets_banner_txt_v72')) document.getElementById('bannerTextEl').innerText = localStorage.getItem('kosoepets_banner_txt_v72');
+    if (localStorage.getItem('kosoepets_about_v72')) document.getElementById('aboutTextEl').innerText = localStorage.getItem('kosoepets_about_v72');
+
+    let savedContact = JSON.parse(localStorage.getItem('kosoepets_contact_v72'));
+    if (savedContact) {
+        document.getElementById('contactPhoneEl').innerHTML = `<i class="fa fa-phone" style="color:#ff9a9e;"></i> ${savedContact.phone}`;
+        document.getElementById('contactEmailEl').innerHTML = `<i class="fa fa-envelope" style="color:#ff9a9e;"></i> ${savedContact.email}`;
+        document.getElementById('fbLinkEl').href = savedContact.fb;
+        document.getElementById('tiktokLinkEl').href = savedContact.tiktok;
+    }
+
     document.addEventListener('click', (e) => {
         if (!e.target.closest('.has-sub')) {
             document.querySelectorAll('.has-sub').forEach(el => el.classList.remove('open'));
         }
     });
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            document.querySelectorAll('.modal').forEach(m => m.style.display = 'none');
+        }
+    });
+
     updateCartCount();
     fetchProducts();
 });
@@ -115,29 +126,29 @@ function toggleSubMenu(e, linkEl) {
     if (!wasOpen) parentLi.classList.add('open');
 }
 
+function sortNewestFirst(list) {
+    return list.sort((a, b) => (Number(b.created_at) || Number(b.id) || 0) - (Number(a.created_at) || Number(a.id) || 0));
+}
+
 async function fetchProducts() {
     if (useLocalFallback) {
-        let stored = localStorage.getItem('kosoepets_products_v71');
-        products = stored ? JSON.parse(stored) : sampleProducts.map((p, i) => ({ ...p, id: i + 1 }));
-        products.sort((a, b) => b.created_at - a.created_at);
-        currentProducts = [...products];
-        renderProducts(currentProducts);
+        let stored = localStorage.getItem('kosoepets_products_v72');
+        products = stored ? JSON.parse(stored) : [
+            { id: 1, type: 'Cats', category: 'Food', name: 'ကြောင်စာ (Premium Dry Cat Food)', price: 25000, exp: '2028-05-01', img: 'https://images.unsplash.com/photo-1574635677940-d98c25dbff45?auto=format&fit=crop&w=400&q=80', specs: 'ထိုင်းနိုင်ငံထုတ် ကြောင်ကလေးတွေအရမ်းကြိုက်', created_at: 1731400001000 },
+            { id: 2, type: 'Dogs', category: 'Snack', name: 'Beef Chew Bones (အမဲရိုးသရေစာ)', price: 8500, exp: '2027-08-11', img: 'https://images.unsplash.com/photo-1589924691995-400dc9ecc119?auto=format&fit=crop&w=400&q=80', specs: 'သွားသန့်ရှင်းစေပြီး အကြာကြီးဝါးနိုင်သည်', created_at: 1731400002000 },
+            { id: 3, type: 'Accessories', category: 'Gear', name: 'Reflective Dog Harness (ခွေးလည်ပတ်ကြိုး)', price: 18000, exp: 'N/A', img: 'https://images.unsplash.com/photo-1584362917165-526a968579e8?auto=format&fit=crop&w=400&q=80', specs: 'ခိုင်ခံ့ပြီး ညဘက်အလင်းပြန်သည်', created_at: 1731400003000 }
+        ];
+        products = sortNewestFirst(products);
+        applyCurrentFilter();
     } else {
         const { data, error } = await supabaseClient.from('products').select('*').order('created_at', { ascending: false });
         if (error) {
             console.error("Supabase fetch error:", error.message);
-            productGrid.innerHTML = `<p style="grid-column: 1/-1; text-align: center; color: #ff4757;">Database error: ${error.message}</p>`;
+            productGrid.innerHTML = `<p style="grid-column: 1/-1; text-align: center; color: #ff4757;">Database connection error: ${error.message}</p>`;
             return;
         }
-        // Auto-seed 9 sample items if database table is empty
-        if ((!data || data.length === 0) && !seededInitialData) {
-            seededInitialData = true;
-            await supabaseClient.from('products').insert(sampleProducts);
-            return fetchProducts();
-        }
-        products = data || [];
-        currentProducts = [...products];
-        renderProducts(currentProducts);
+        products = sortNewestFirst(data || []);
+        applyCurrentFilter();
 
         supabaseClient.channel('public:products')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => {
@@ -169,14 +180,15 @@ function handleImageUpload(inputId, targetUrlId) {
 }
 handleImageUpload('addImgFile', 'addImg');
 handleImageUpload('editImgFile', 'editImg');
+handleImageUpload('editBannerFile', 'editBannerImg');
 
 // ==========================================
-// 5. CART & VOUCHER LOGIC
+// 5. CART, INDIVIDUAL REMOVE & PDF VOUCHER
 // ==========================================
 function addToCart(id) {
-    const item = products.find(p => p.id === id);
+    const item = products.find(p => Number(p.id) === Number(id));
     if (item) {
-        let existing = cart.find(c => c.id === id);
+        let existing = cart.find(c => Number(c.id) === Number(id));
         if (existing) {
             existing.qty += 1;
         } else {
@@ -188,17 +200,25 @@ function addToCart(id) {
 }
 
 function updateCartQty(id, delta) {
-    let item = cart.find(c => c.id === id);
+    let item = cart.find(c => Number(c.id) === Number(id));
     if (item) {
         item.qty += delta;
-        if (item.qty <= 0) cart = cart.filter(c => c.id !== id);
+        if (item.qty <= 0) {
+            cart = cart.filter(c => Number(c.id) !== Number(id));
+        }
         saveCart();
-        openCartModal();
+        renderCartItems();
     }
 }
 
+function removeCartItem(id) {
+    cart = cart.filter(c => Number(c.id) !== Number(id));
+    saveCart();
+    renderCartItems();
+}
+
 function saveCart() {
-    localStorage.setItem('kosoepets_cart_v71', JSON.stringify(cart));
+    localStorage.setItem('kosoepets_cart_v72', JSON.stringify(cart));
     updateCartCount();
 }
 
@@ -207,12 +227,17 @@ function updateCartCount() {
 }
 
 function openCartModal() {
+    renderCartItems();
+    document.getElementById('cartModal').style.display = 'block';
+}
+
+function renderCartItems() {
     const listEl = document.getElementById('cartItemsList');
     const grandTotalEl = document.getElementById('cartGrandTotal');
     listEl.innerHTML = '';
 
     if (cart.length === 0) {
-        listEl.innerHTML = `<p style="text-align:center;">${translations[currentLang].cart_empty}</p>`;
+        listEl.innerHTML = `<p style="text-align:center; padding: 15px 0; color: #777;">${translations[currentLang].cart_empty}</p>`;
         grandTotalEl.innerText = '0 MMK';
     } else {
         let grandTotal = 0;
@@ -226,63 +251,185 @@ function openCartModal() {
                         <span>${item.name}<br><small>${Number(item.price).toLocaleString()} MMK</small></span>
                     </div>
                     <div class="cart-qty-controls">
-                        <button class="cart-qty-btn" onclick="updateCartQty(${item.id}, -1)">-</button>
+                        <button type="button" class="cart-qty-btn" onclick="updateCartQty(${item.id}, -1)">-</button>
                         <span>${item.qty}</span>
-                        <button class="cart-qty-btn" onclick="updateCartQty(${item.id}, 1)">+</button>
+                        <button type="button" class="cart-qty-btn" onclick="updateCartQty(${item.id}, 1)">+</button>
                     </div>
                     <div class="cart-item-total">
                         ${itemTotal.toLocaleString()} MMK
                     </div>
+                    <button type="button" class="remove-item-btn" onclick="removeCartItem(${item.id})" title="Remove">&times;</button>
                 </div>`;
         });
         grandTotalEl.innerText = `${grandTotal.toLocaleString()} MMK`;
     }
-    document.getElementById('cartModal').style.display = 'block';
+}
+
+function downloadCartPDF() {
+    if (cart.length === 0) {
+        alert(translations[currentLang].cart_empty);
+        return;
+    }
+
+    const t = translations[currentLang];
+    const now = new Date();
+    const dateStr = now.toISOString().slice(0, 10);
+    const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    let grandTotal = 0;
+    let rowsHtml = '';
+
+    cart.forEach((item, idx) => {
+        const unitPrice = Number(item.price);
+        const rowTotal = unitPrice * item.qty;
+        grandTotal += rowTotal;
+        rowsHtml += `
+            <tr>
+                <td>${idx + 1}</td>
+                <td><img src="${item.img}" style="width:38px;height:38px;object-fit:cover;border-radius:4px;vertical-align:middle;margin-right:8px;" onerror="this.style.display='none'">${item.name}</td>
+                <td style="text-align:center;">${item.qty}</td>
+                <td style="text-align:right;">${unitPrice.toLocaleString()} MMK</td>
+                <td style="text-align:right;font-weight:bold;">${rowTotal.toLocaleString()} MMK</td>
+            </tr>
+        `;
+    });
+
+    const voucherWindow = window.open('', '_blank', 'width=800,height=900');
+    if (!voucherWindow) {
+        alert('Please allow pop-ups in your browser to download/save the PDF voucher.');
+        return;
+    }
+
+    voucherWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>Ko_Soe_Love_Pets_Voucher_${dateStr}</title>
+            <style>
+                body { font-family: 'Segoe UI', Tahoma, sans-serif; padding: 30px; color: #333; position: relative; }
+                .watermark {
+                    position: fixed; top: 45%; left: 50%; transform: translate(-50%, -50%) rotate(-30deg);
+                    font-size: 64px; font-weight: 800; color: rgba(255, 117, 140, 0.13);
+                    white-space: nowrap; pointer-events: none; z-index: 0; user-select: none;
+                }
+                .voucher-box { position: relative; z-index: 1; max-width: 720px; margin: 0 auto; border: 2px solid #fecfef; border-radius: 12px; padding: 25px; background: rgba(255,255,255,0.94); }
+                .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #ff758c; padding-bottom: 15px; margin-bottom: 20px; }
+                .header h1 { color: #ff758c; margin: 0; font-size: 26px; }
+                .meta { text-align: right; font-size: 13px; color: #555; }
+                table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+                th { background: #fecfef; color: #333; padding: 10px; text-align: left; font-size: 14px; }
+                td { padding: 10px; border-bottom: 1px solid #eee; font-size: 14px; }
+                .totals { width: 280px; margin-left: auto; font-size: 15px; }
+                .totals div { display: flex; justify-content: space-between; padding: 6px 0; }
+                .totals .grand { font-size: 18px; font-weight: bold; color: #ff758c; border-top: 2px solid #eee; padding-top: 10px; }
+                .footer { text-align: center; margin-top: 30px; font-weight: bold; color: #555; font-size: 15px; }
+                @media print {
+                    body { padding: 0; }
+                    .no-print { display: none; }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="watermark">Ko Soe Love Pets</div>
+            <div class="voucher-box">
+                <div class="header">
+                    <div>
+                        <h1>● Ko Soe Love Pets</h1>
+                        <small>Viber: +959262597117 | TikTok: @ko.soe1376</small>
+                    </div>
+                    <div class="meta">
+                        <strong>${t.voucher_title}</strong><br>
+                        Date: ${dateStr} ${timeStr}
+                    </div>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>${t.product}</th>
+                            <th style="text-align:center;">${t.qty}</th>
+                            <th style="text-align:right;">Price</th>
+                            <th style="text-align:right;">${t.total}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rowsHtml}
+                    </tbody>
+                </table>
+                <div class="totals">
+                    <div><span>${t.discount}</span><span>0 MMK</span></div>
+                    <div class="grand"><span>${t.grand_total}</span><span>${grandTotal.toLocaleString()} MMK</span></div>
+                </div>
+                <div class="footer">${t.thank_you}</div>
+            </div>
+            <script>
+                window.onload = function() {
+                    setTimeout(function() { window.print(); }, 400);
+                };
+            </script>
+        </body>
+        </html>
+    `);
+    voucherWindow.document.close();
 }
 
 function redirectToViber() {
     if (cart.length === 0) return;
 
+    const t = translations[currentLang];
     let grandTotal = 0;
     let orderSummary = `Items | Selected products%0A`;
     cart.forEach(item => {
         let rowTotal = Number(item.price) * item.qty;
         grandTotal += rowTotal;
-        orderSummary += `Product Name | ${item.name}%0AQty | ${item.qty}%0APrice | ${Number(item.price).toLocaleString()} MMK%0A-%0A`;
+        orderSummary += `${t.product} | ${item.name}%0A${t.qty} | ${item.qty}%0APrice | ${Number(item.price).toLocaleString()} MMK%0A-%0A`;
     });
-    orderSummary += `Grand Total | ${grandTotal.toLocaleString()} MMK%0A`;
-    orderSummary += `Discount | 0 MMK%0A%0A`;
-    orderSummary += `Thanks for your shopping!`;
+    orderSummary += `${t.grand_total} ${grandTotal.toLocaleString()} MMK%0A`;
+    orderSummary += `${t.discount} 0 MMK%0A%0A`;
+    orderSummary += `${t.thank_you}`;
 
     const viberUrl = `viber://chat?number=%2B959262597117&text=${orderSummary}`;
     window.location.href = viberUrl;
 }
 
 // ==========================================
-// 6. UI RENDER, SEARCH & FILTER LOGIC
+// 6. REAL-TIME SEARCH & FILTER LOGIC
 // ==========================================
-searchInput.addEventListener('input', (e) => {
-    const term = e.target.value.toLowerCase().trim();
-    if (term === '') {
-        categoryTitle.innerText = translations[currentLang].all_items;
-        currentProducts = products;
-        renderProducts(products);
-        return;
-    }
-    categoryTitle.innerText = `${translations[currentLang].search_res} "${term}"`;
-    currentProducts = products.filter(p =>
-        (p.name && p.name.toLowerCase().includes(term)) ||
-        (p.type && p.type.toLowerCase().includes(term)) ||
-        (p.category && p.category.toLowerCase().includes(term)) ||
-        (p.specs && p.specs.toLowerCase().includes(term))
-    );
-    renderProducts(currentProducts);
+let activeCategoryFilter = null;
+
+searchInput.addEventListener('input', () => {
+    applyCurrentFilter();
 });
+
+function applyCurrentFilter() {
+    const term = searchInput.value.toLowerCase().trim();
+    let list = [...products];
+
+    if (activeCategoryFilter) {
+        list = list.filter(p => p.type === activeCategoryFilter.type && p.category === activeCategoryFilter.category);
+    }
+
+    if (term !== '') {
+        categoryTitle.innerText = `${translations[currentLang].search_res} "${searchInput.value.trim()}"`;
+        list = list.filter(p =>
+            (p.name && p.name.toLowerCase().includes(term)) ||
+            (p.specs && p.specs.toLowerCase().includes(term)) ||
+            (p.type && p.type.toLowerCase().includes(term)) ||
+            (p.category && p.category.toLowerCase().includes(term))
+        );
+    } else if (!activeCategoryFilter) {
+        categoryTitle.innerText = translations[currentLang].all_items;
+    }
+
+    currentProducts = sortNewestFirst(list);
+    renderProducts(currentProducts);
+}
 
 function renderProducts(items) {
     productGrid.innerHTML = '';
     if (!items || items.length === 0) {
-        productGrid.innerHTML = `<p style="grid-column: 1/-1; text-align: center; color: #666;">No products found.</p>`;
+        const msg = searchInput.value.trim() !== '' ? translations[currentLang].no_match : 'No products available.';
+        productGrid.innerHTML = `<p style="grid-column: 1/-1; text-align: center; color: #666; padding: 20px;">${msg}</p>`;
         return;
     }
     items.forEach(item => {
@@ -290,8 +437,8 @@ function renderProducts(items) {
         card.className = 'product-card';
         let adminHtml = isAdmin ? `
             <div class="card-admin-actions">
-                <button class="edit-btn" onclick="openEdit(${item.id})"><i class="fa fa-edit"></i> Edit</button>
-                <button class="delete-btn" onclick="deleteProduct(${item.id})"><i class="fa fa-trash"></i> Del</button>
+                <button type="button" class="edit-btn" onclick="openEdit(${item.id})"><i class="fa fa-edit"></i> Edit</button>
+                <button type="button" class="delete-btn" onclick="deleteProduct(${item.id})"><i class="fa fa-trash"></i> Del</button>
             </div>` : '';
 
         card.innerHTML = `
@@ -301,7 +448,7 @@ function renderProducts(items) {
                 <p class="price">${Number(item.price).toLocaleString()} MMK</p>
                 <p class="product-meta"><strong>Exp:</strong> ${item.exp}</p>
                 <p class="product-meta">${item.specs}</p>
-                <button class="buy-btn" onclick="addToCart(${item.id})">🛒 Add to Cart</button>
+                <button type="button" class="buy-btn" onclick="addToCart(${item.id})">🛒 Add to Cart</button>
                 ${adminHtml}
             </div>
         `;
@@ -310,18 +457,233 @@ function renderProducts(items) {
 }
 
 function goHome() {
+    document.querySelectorAll('.has-sub').forEach(el => el.classList.remove('open'));
+    activeCategoryFilter = null;
     searchInput.value = '';
     categoryTitle.innerText = translations[currentLang].all_items;
-    currentProducts = products;
-    renderProducts(products);
+    applyCurrentFilter();
 }
 
 function filterProducts(type, category) {
+    document.querySelectorAll('.has-sub').forEach(el => el.classList.remove('open'));
+    activeCategoryFilter = { type, category };
     searchInput.value = '';
     categoryTitle.innerText = `${type} - ${translations[currentLang][category.toLowerCase()] || category}`;
-    currentProducts = products.filter(p => p.type === type && p.category === category);
-    renderProducts(currentProducts);
+    applyCurrentFilter();
 }
 
 // ==========================================
-// 7. ADMIN C
+// 7. MODALS & ADMIN AUTHENTICATION
+// ==========================================
+function closeModal(id) {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+}
+
+function handleOutsideModalClick(e, id) {
+    if (e.target && e.target.id === id) {
+        closeModal(id);
+    }
+}
+
+function openLoginModal() {
+    document.getElementById('loginError').innerText = '';
+    document.getElementById('username').value = '';
+    document.getElementById('password').value = '';
+    document.getElementById('loginModal').style.display = 'block';
+    setTimeout(() => document.getElementById('username').focus(), 100);
+}
+
+function login() {
+    const user = document.getElementById('username').value.trim();
+    const pass = document.getElementById('password').value.trim();
+    if (user === 'admin' && pass === currentAdminPass) {
+        isAdmin = true;
+        closeModal('loginModal');
+        document.querySelectorAll('.admin-btn').forEach(btn => btn.classList.remove('hidden'));
+        document.getElementById('editBannerBtn').classList.remove('hidden');
+        document.getElementById('editAboutBtn').classList.remove('hidden');
+        document.getElementById('editContactBtn').classList.remove('hidden');
+        document.getElementById('loginBtn').classList.add('hidden');
+        document.getElementById('logoutBtn').classList.remove('hidden');
+        renderProducts(currentProducts);
+    } else {
+        document.getElementById('loginError').innerText = 'Invalid username or password';
+    }
+}
+
+function logout() {
+    isAdmin = false;
+    document.querySelectorAll('.admin-btn').forEach(btn => btn.classList.add('hidden'));
+    document.getElementById('editBannerBtn').classList.add('hidden');
+    document.getElementById('editAboutBtn').classList.add('hidden');
+    document.getElementById('editContactBtn').classList.add('hidden');
+    document.getElementById('loginBtn').classList.remove('hidden');
+    document.getElementById('logoutBtn').classList.add('hidden');
+    renderProducts(currentProducts);
+}
+
+function openChangePass() {
+    document.getElementById('oldPass').value = '';
+    document.getElementById('newPass').value = '';
+    document.getElementById('passError').innerText = '';
+    document.getElementById('passModal').style.display = 'block';
+}
+
+function savePassword() {
+    const oldP = document.getElementById('oldPass').value.trim();
+    const newP = document.getElementById('newPass').value.trim();
+    if (oldP !== currentAdminPass) {
+        document.getElementById('passError').innerText = 'Current password incorrect!';
+        return;
+    }
+    if (!newP) {
+        document.getElementById('passError').innerText = 'New password cannot be empty!';
+        return;
+    }
+    currentAdminPass = newP;
+    localStorage.setItem('kosoepets_pass_v72', newP);
+    closeModal('passModal');
+    alert('Password updated successfully!');
+}
+
+function openAddModal() {
+    document.getElementById('addName').value = '';
+    document.getElementById('addImg').value = '';
+    document.getElementById('addImgFile').value = '';
+    document.getElementById('addPrice').value = '';
+    document.getElementById('addExp').value = '';
+    document.getElementById('addSpecs').value = '';
+    document.getElementById('addModal').style.display = 'block';
+}
+
+function openEdit(id) {
+    const item = products.find(p => Number(p.id) === Number(id));
+    if (!item) return;
+    document.getElementById('editId').value = item.id;
+    document.getElementById('editName').value = item.name;
+    document.getElementById('editImg').value = item.img;
+    document.getElementById('editPrice').value = item.price;
+    document.getElementById('editExp').value = item.exp;
+    document.getElementById('editSpecs').value = item.specs;
+    document.getElementById('editImgFile').value = '';
+    document.getElementById('editModal').style.display = 'block';
+}
+
+async function saveNewProduct() {
+    const newProd = {
+        type: document.getElementById('addType').value,
+        category: document.getElementById('addCategory').value,
+        name: document.getElementById('addName').value.trim() || 'New Product',
+        price: parseInt(document.getElementById('addPrice').value) || 0,
+        exp: document.getElementById('addExp').value.trim() || 'N/A',
+        img: document.getElementById('addImg').value.trim() || 'https://via.placeholder.com/400x300?text=No+Image',
+        specs: document.getElementById('addSpecs').value.trim() || '',
+        created_at: Date.now()
+    };
+
+    if (useLocalFallback) {
+        newProd.id = Date.now();
+        products.unshift(newProd);
+        localStorage.setItem('kosoepets_products_v72', JSON.stringify(products));
+        fetchProducts();
+    } else {
+        const { error } = await supabaseClient.from('products').insert([newProd]);
+        if (error) {
+            alert("Error saving to Supabase: " + error.message);
+            return;
+        }
+        await fetchProducts();
+    }
+    closeModal('addModal');
+}
+
+async function saveEdit() {
+    const id = Number(document.getElementById('editId').value);
+    const updates = {
+        name: document.getElementById('editName').value.trim(),
+        img: document.getElementById('editImg').value.trim(),
+        price: parseInt(document.getElementById('editPrice').value) || 0,
+        exp: document.getElementById('editExp').value.trim(),
+        specs: document.getElementById('editSpecs').value.trim()
+    };
+
+    if (useLocalFallback) {
+        let index = products.findIndex(p => Number(p.id) === id);
+        if (index > -1) {
+            products[index] = { ...products[index], ...updates };
+            localStorage.setItem('kosoepets_products_v72', JSON.stringify(products));
+            fetchProducts();
+        }
+    } else {
+        const { error } = await supabaseClient.from('products').update(updates).eq('id', id);
+        if (error) {
+            alert("Error updating Supabase: " + error.message);
+            return;
+        }
+        await fetchProducts();
+    }
+    closeModal('editModal');
+}
+
+async function deleteProduct(id) {
+    if (confirm('Are you sure you want to delete this product?')) {
+        if (useLocalFallback) {
+            products = products.filter(p => Number(p.id) !== Number(id));
+            localStorage.setItem('kosoepets_products_v72', JSON.stringify(products));
+            fetchProducts();
+        } else {
+            const { error } = await supabaseClient.from('products').delete().eq('id', id);
+            if (error) {
+                alert("Error deleting from Supabase: " + error.message);
+                return;
+            }
+            await fetchProducts();
+        }
+    }
+}
+
+// Banner, About & Contact Editors
+function openBannerEdit() {
+    document.getElementById('editBannerText').value = document.getElementById('bannerTextEl').innerText;
+    document.getElementById('editBannerImg').value = document.getElementById('bannerImgEl').src;
+    document.getElementById('bannerModal').style.display = 'block';
+}
+function saveBanner() {
+    const txt = document.getElementById('editBannerText').value;
+    const img = document.getElementById('editBannerImg').value;
+    document.getElementById('bannerTextEl').innerText = txt;
+    document.getElementById('bannerImgEl').src = img;
+    localStorage.setItem('kosoepets_banner_txt_v72', txt);
+    localStorage.setItem('kosoepets_banner_img_v72', img);
+    closeModal('bannerModal');
+}
+function openAboutEdit() {
+    document.getElementById('editAboutText').value = document.getElementById('aboutTextEl').innerText;
+    document.getElementById('aboutModal').style.display = 'block';
+}
+function saveAbout() {
+    const txt = document.getElementById('editAboutText').value;
+    document.getElementById('aboutTextEl').innerText = txt;
+    localStorage.setItem('kosoepets_about_v72', txt);
+    closeModal('aboutModal');
+}
+function openContactEdit() {
+    document.getElementById('editPhone').value = document.getElementById('contactPhoneEl').innerText.trim();
+    document.getElementById('editEmail').value = document.getElementById('contactEmailEl').innerText.trim();
+    document.getElementById('editFb').value = document.getElementById('fbLinkEl').href;
+    document.getElementById('editTiktok').value = document.getElementById('tiktokLinkEl').href;
+    document.getElementById('contactModal').style.display = 'block';
+}
+function saveContact() {
+    const phone = document.getElementById('editPhone').value;
+    const email = document.getElementById('editEmail').value;
+    const fb = document.getElementById('editFb').value;
+    const tiktok = document.getElementById('editTiktok').value;
+    document.getElementById('contactPhoneEl').innerHTML = `<i class="fa fa-phone" style="color:#ff9a9e;"></i> ${phone}`;
+    document.getElementById('contactEmailEl').innerHTML = `<i class="fa fa-envelope" style="color:#ff9a9e;"></i> ${email}`;
+    document.getElementById('fbLinkEl').href = fb;
+    document.getElementById('tiktokLinkEl').href = tiktok;
+    localStorage.setItem('kosoepets_contact_v72', JSON.stringify({ phone, email, fb, tiktok }));
+    closeModal('contactModal');
+}
