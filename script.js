@@ -2,13 +2,28 @@
 // 1. SUPABASE CONFIGURATION (Backend Sync)
 // ==========================================
 const SUPABASE_URL = 'https://moggsrqzhygvavsdcanh.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_v6HqFpBZkX4LJd0T54mMvQ_W3GS9cTY';
+const SUPABASE_ANON_KEY = 'sb_publishable_v6HqFpBZkX4LJdOT54mMvQ_W3GS9cTY';
 
 let supabaseClient = null;
 let useLocalFallback = false;
 
+const sampleProducts = [
+    // 3 Cats Items
+    { type: 'Cats', category: 'Food', name: 'Me-O Tuna Adult Cat Food (1.2kg)', price: 14500, exp: '2027-11-15', img: 'https://images.unsplash.com/photo-1574635677940-d98c25dbff45?auto=format&fit=crop&w=400&q=80', specs: 'Balanced nutrition with Taurine for healthy vision.', created_at: Date.now() },
+    { type: 'Cats', category: 'Snack', name: 'Ciao Churu Tuna Creamy Treats', price: 4500, exp: '2027-08-20', img: 'https://images.unsplash.com/photo-1583337130417-3346a1be7dee?auto=format&fit=crop&w=400&q=80', specs: '4 tubes per pack, grain-free lickable cat snack.', created_at: Date.now() - 100 },
+    { type: 'Cats', category: 'Medicine', name: 'Frontline Plus Flea & Tick Drops', price: 18000, exp: '2028-03-01', img: 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&w=400&q=80', specs: 'Fast-acting waterproof flea and tick protection.', created_at: Date.now() - 200 },
+    // 3 Dogs Items
+    { type: 'Dogs', category: 'Food', name: 'Pedigree Chicken & Vegetables (1.5kg)', price: 16500, exp: '2027-12-10', img: 'https://images.unsplash.com/photo-1583511655826-05700d52f4d9?auto=format&fit=crop&w=400&q=80', specs: 'Omega 6 & Zinc for healthy skin and shiny coat.', created_at: Date.now() - 300 },
+    { type: 'Dogs', category: 'Snack', name: 'JerHigh Milky Sticks Dog Snack', price: 5500, exp: '2027-09-05', img: 'https://images.unsplash.com/photo-1589924691995-400dc9ecc119?auto=format&fit=crop&w=400&q=80', specs: 'Made with real chicken meat, high protein.', created_at: Date.now() - 400 },
+    { type: 'Dogs', category: 'Medicine', name: 'Heartgard Plus Chewables', price: 22000, exp: '2028-05-12', img: 'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?auto=format&fit=crop&w=400&q=80', specs: 'Monthly beef-flavored heartworm preventive.', created_at: Date.now() - 500 },
+    // 3 Accessories Items
+    { type: 'Accessories', category: 'Bowls', name: 'Anti-Slip Double Pet Food Bowl', price: 9500, exp: 'N/A', img: 'https://images.unsplash.com/photo-1601758174114-e711c0cbea69?auto=format&fit=crop&w=400&q=80', specs: 'Stainless steel removable bowls for food & water.', created_at: Date.now() - 600 },
+    { type: 'Accessories', category: 'Toys', name: 'Interactive Feather Teaser Wand', price: 4000, exp: 'N/A', img: 'https://images.unsplash.com/photo-1596492784531-6e6eb5ea9993?auto=format&fit=crop&w=400&q=80', specs: 'Natural feathers with bell for indoor exercise.', created_at: Date.now() - 700 },
+    { type: 'Accessories', category: 'Gear', name: 'Adjustable Reflective Pet Harness', price: 13000, exp: 'N/A', img: 'https://images.unsplash.com/photo-1584362917165-526a968579e8?auto=format&fit=crop&w=400&q=80', specs: 'Breathable mesh chest vest with 1.5m leash.', created_at: Date.now() - 800 }
+];
+
 try {
-    if (SUPABASE_URL && SUPABASE_URL.startsWith('https://') && window.supabase) {
+    if (SUPABASE_URL && SUPABASE_URL.startsWith('https://') && SUPABASE_ANON_KEY.startsWith('eyJ') && window.supabase) {
         supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         document.getElementById('sysBanner').classList.add('hidden');
     } else {
@@ -75,6 +90,7 @@ let currentProducts = [];
 let cart = JSON.parse(localStorage.getItem('kosoepets_cart_v71')) || [];
 let isAdmin = false;
 let currentAdminPass = localStorage.getItem('kosoepets_pass_v71') || 'admin';
+let seededInitialData = false;
 
 const productGrid = document.getElementById('productGrid');
 const searchInput = document.getElementById('searchInput');
@@ -102,10 +118,7 @@ function toggleSubMenu(e, linkEl) {
 async function fetchProducts() {
     if (useLocalFallback) {
         let stored = localStorage.getItem('kosoepets_products_v71');
-        products = stored ? JSON.parse(stored) : [
-            { id: 1, type: 'Cats', category: 'Food', name: 'Premium Cat Food', price: 25000, exp: '2028-05-01', img: 'https://images.unsplash.com/photo-1574635677940-d98c25dbff45?auto=format&fit=crop&w=400&q=80', specs: 'Complete nutrition.', created_at: Date.now() },
-            { id: 2, type: 'Dogs', category: 'Snack', name: 'Beef Bones', price: 8500, exp: '2027-08-11', img: 'https://images.unsplash.com/photo-1589924691995-400dc9ecc119?auto=format&fit=crop&w=400&q=80', specs: 'Tough beef bone.', created_at: Date.now() - 1000 }
-        ];
+        products = stored ? JSON.parse(stored) : sampleProducts.map((p, i) => ({ ...p, id: i + 1 }));
         products.sort((a, b) => b.created_at - a.created_at);
         currentProducts = [...products];
         renderProducts(currentProducts);
@@ -113,8 +126,14 @@ async function fetchProducts() {
         const { data, error } = await supabaseClient.from('products').select('*').order('created_at', { ascending: false });
         if (error) {
             console.error("Supabase fetch error:", error.message);
-            productGrid.innerHTML = `<p style="grid-column: 1/-1; text-align: center; color: #ff4757;">Database connection error: ${error.message}</p>`;
+            productGrid.innerHTML = `<p style="grid-column: 1/-1; text-align: center; color: #ff4757;">Database error: ${error.message}</p>`;
             return;
+        }
+        // Auto-seed 9 sample items if database table is empty
+        if ((!data || data.length === 0) && !seededInitialData) {
+            seededInitialData = true;
+            await supabaseClient.from('products').insert(sampleProducts);
+            return fetchProducts();
         }
         products = data || [];
         currentProducts = [...products];
@@ -263,7 +282,7 @@ searchInput.addEventListener('input', (e) => {
 function renderProducts(items) {
     productGrid.innerHTML = '';
     if (!items || items.length === 0) {
-        productGrid.innerHTML = `<p style="grid-column: 1/-1; text-align: center; color: #666;">No products yet. Click <b>Admin Login</b> (admin / admin) to add your first product!</p>`;
+        productGrid.innerHTML = `<p style="grid-column: 1/-1; text-align: center; color: #666;">No products found.</p>`;
         return;
     }
     items.forEach(item => {
@@ -305,116 +324,4 @@ function filterProducts(type, category) {
 }
 
 // ==========================================
-// 7. ADMIN C.R.U.D LOGIC
-// ==========================================
-function closeModal(id) { document.getElementById(id).style.display = 'none'; }
-function openAddModal() { document.getElementById('addModal').style.display = 'block'; }
-function openEdit(id) {
-    const item = products.find(p => p.id === id);
-    if (!item) return;
-    document.getElementById('editId').value = item.id;
-    document.getElementById('editImg').value = item.img;
-    document.getElementById('editPrice').value = item.price;
-    document.getElementById('editExp').value = item.exp;
-    document.getElementById('editSpecs').value = item.specs;
-    document.getElementById('editModal').style.display = 'block';
-}
-
-async function saveNewProduct() {
-    const newProd = {
-        type: document.getElementById('addType').value,
-        category: document.getElementById('addCategory').value,
-        name: document.getElementById('addName').value || 'New Product',
-        price: parseInt(document.getElementById('addPrice').value) || 0,
-        exp: document.getElementById('addExp').value || 'N/A',
-        img: document.getElementById('addImg').value || 'https://via.placeholder.com/400x300?text=No+Image',
-        specs: document.getElementById('addSpecs').value || '',
-        created_at: Date.now()
-    };
-
-    if (useLocalFallback) {
-        newProd.id = Date.now();
-        products.unshift(newProd);
-        localStorage.setItem('kosoepets_products_v71', JSON.stringify(products));
-        fetchProducts();
-    } else {
-        const { error } = await supabaseClient.from('products').insert([newProd]);
-        if (error) {
-            alert("Error saving to Supabase: " + error.message);
-            return;
-        }
-        await fetchProducts();
-    }
-    closeModal('addModal');
-}
-
-async function saveEdit() {
-    const id = parseInt(document.getElementById('editId').value);
-    const updates = {
-        img: document.getElementById('editImg').value,
-        price: parseInt(document.getElementById('editPrice').value) || 0,
-        exp: document.getElementById('editExp').value,
-        specs: document.getElementById('editSpecs').value
-    };
-
-    if (useLocalFallback) {
-        let index = products.findIndex(p => p.id === id);
-        if (index > -1) {
-            products[index] = { ...products[index], ...updates };
-            localStorage.setItem('kosoepets_products_v71', JSON.stringify(products));
-            fetchProducts();
-        }
-    } else {
-        const { error } = await supabaseClient.from('products').update(updates).eq('id', id);
-        if (error) {
-            alert("Error updating Supabase: " + error.message);
-            return;
-        }
-        await fetchProducts();
-    }
-    closeModal('editModal');
-}
-
-async function deleteProduct(id) {
-    if (confirm('Are you sure you want to delete this product?')) {
-        if (useLocalFallback) {
-            products = products.filter(p => p.id !== id);
-            localStorage.setItem('kosoepets_products_v71', JSON.stringify(products));
-            fetchProducts();
-        } else {
-            const { error } = await supabaseClient.from('products').delete().eq('id', id);
-            if (error) {
-                alert("Error deleting from Supabase: " + error.message);
-                return;
-            }
-            await fetchProducts();
-        }
-    }
-}
-
-// Login
-document.getElementById('loginBtn').onclick = () => {
-    document.getElementById('loginModal').style.display = 'block';
-    document.getElementById('loginError').innerText = '';
-};
-
-function login() {
-    if (document.getElementById('username').value === 'admin' && document.getElementById('password').value === currentAdminPass) {
-        isAdmin = true;
-        closeModal('loginModal');
-        document.getElementById('addBtn').classList.remove('hidden');
-        document.getElementById('loginBtn').classList.add('hidden');
-        document.getElementById('logoutBtn').classList.remove('hidden');
-        renderProducts(currentProducts);
-    } else {
-        document.getElementById('loginError').innerText = 'Invalid username or password';
-    }
-}
-
-document.getElementById('logoutBtn').onclick = () => {
-    isAdmin = false;
-    document.getElementById('addBtn').classList.add('hidden');
-    document.getElementById('loginBtn').classList.remove('hidden');
-    document.getElementById('logoutBtn').classList.add('hidden');
-    renderProducts(currentProducts);
-};
+// 7. ADMIN C
