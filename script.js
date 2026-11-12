@@ -3,7 +3,7 @@
 // ==========================================
 const APP_VERSION = 'v7.2';
 const SUPABASE_URL = 'https://moggsrqzhygvavsdcanh.supabase.co';
-const SUPABASE_ANON_KEY = 'YOUR_LEGACY_ANON_PUBLIC_KEY_HERE';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1vZ2dzcnF6aHlndmF2c2RjYW5oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ0NzE0NzYsImV4cCI6MjExMDA0NzQ3Nn0.l8Et78xU1eo6f7UND-0ONHPPJfM_oJ-qEMyKUAZoPIU';
 
 let supabaseClient = null;
 let useLocalFallback = false;
