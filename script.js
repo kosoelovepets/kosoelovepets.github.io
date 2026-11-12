@@ -1,9 +1,9 @@
 // ==========================================
 // 1. SUPABASE CONFIGURATION (Backend Sync)
 // ==========================================
-const APP_VERSION = 'v7.2';
+const APP_VERSION = 'v7.3';
 const SUPABASE_URL = 'https://moggsrqzhygvavsdcanh.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1vZ2dzcnF6aHlndmF2c2RjYW5oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ0NzE0NzYsImV4cCI6MjExMDA0NzQ3Nn0.l8Et78xU1eo6f7UND-0ONHPPJfM_oJ-qEMyKUAZoPIU';
+const SUPABASE_ANON_KEY = 'YOUR_LEGACY_ANON_PUBLIC_KEY_HERE';
 
 let supabaseClient = null;
 let useLocalFallback = false;
@@ -76,25 +76,26 @@ function switchLanguage() {
 }
 
 // ==========================================
-// 3. PRODUCT & SYNC STATE (Newest First)
+// 3. CENTRALIZED STATE & INIT
 // ==========================================
 let products = [];
 let currentProducts = [];
-let cart = JSON.parse(localStorage.getItem('kosoepets_cart_v72')) || [];
+let cart = JSON.parse(localStorage.getItem('kosoepets_cart_v73')) || [];
 let isAdmin = false;
-let currentAdminPass = localStorage.getItem('kosoepets_pass_v72') || 'admin';
+let currentAdminPass = localStorage.getItem('kosoepets_pass_v73') || 'admin';
 
 const productGrid = document.getElementById('productGrid');
 const searchInput = document.getElementById('searchInput');
 const categoryTitle = document.getElementById('categoryTitle');
 
 document.addEventListener('DOMContentLoaded', () => {
-    if (localStorage.getItem('kosoepets_banner_img_v72')) document.getElementById('bannerImgEl').src = localStorage.getItem('kosoepets_banner_img_v72');
-    if (localStorage.getItem('kosoepets_banner_txt_v72')) document.getElementById('bannerTextEl').innerText = localStorage.getItem('kosoepets_banner_txt_v72');
-    if (localStorage.getItem('kosoepets_about_v72')) document.getElementById('aboutTextEl').innerText = localStorage.getItem('kosoepets_about_v72');
-
-    let savedContact = JSON.parse(localStorage.getItem('kosoepets_contact_v72'));
+    initBanner();
+    
+    if (localStorage.getItem('kosoepets_about_v73')) document.getElementById('aboutTextEl').innerText = localStorage.getItem('kosoepets_about_v73');
+    let savedContact = JSON.parse(localStorage.getItem('kosoepets_contact_v73'));
     if (savedContact) {
+        let cleanPhone = savedContact.phone.replace(/[^0-9+]/g, '');
+        document.getElementById('contactPhoneEl').href = `tel:${cleanPhone}`;
         document.getElementById('contactPhoneEl').innerHTML = `<i class="fa fa-phone" style="color:#ff9a9e;"></i> ${savedContact.phone}`;
         document.getElementById('contactEmailEl').innerHTML = `<i class="fa fa-envelope" style="color:#ff9a9e;"></i> ${savedContact.email}`;
         document.getElementById('fbLinkEl').href = savedContact.fb;
@@ -130,9 +131,119 @@ function sortNewestFirst(list) {
     return list.sort((a, b) => (Number(b.created_at) || Number(b.id) || 0) - (Number(a.created_at) || Number(a.id) || 0));
 }
 
+// ==========================================
+// 3.5 BANNER SLIDESHOW LOGIC
+// ==========================================
+let bannerImages = JSON.parse(localStorage.getItem('kosoepets_banner_imgs_v73')) || [
+    'https://images.unsplash.com/photo-1541364983171-a8ba01e95cfc?auto=format&fit=crop&w=1200&q=80'
+];
+let bannerSlideIdx = 0;
+let bannerInterval = null;
+
+function initBanner() {
+    if (localStorage.getItem('kosoepets_banner_txt_v73')) {
+        document.getElementById('bannerTextEl').innerText = localStorage.getItem('kosoepets_banner_txt_v73');
+    }
+    renderBannerSlideshow();
+}
+
+function renderBannerSlideshow() {
+    const container = document.getElementById('bannerSlideshow');
+    container.innerHTML = '';
+    if (!bannerImages || bannerImages.length === 0) return;
+    
+    bannerImages.forEach((src, idx) => {
+        let img = document.createElement('img');
+        img.src = src;
+        img.className = 'slideshow-img' + (idx === 0 ? ' active' : '');
+        container.appendChild(img);
+    });
+    
+    clearInterval(bannerInterval);
+    if (bannerImages.length > 1) {
+        bannerInterval = setInterval(() => {
+            let imgs = document.querySelectorAll('.slideshow-img');
+            if (imgs.length <= 1) return;
+            imgs[bannerSlideIdx].classList.remove('active');
+            bannerSlideIdx = (bannerSlideIdx + 1) % imgs.length;
+            imgs[bannerSlideIdx].classList.add('active');
+        }, 2000); 
+    }
+}
+
+let tempBannerBase64 = [];
+document.getElementById('editBannerFiles').addEventListener('change', function(e) {
+    let files = Array.from(e.target.files);
+    if (files.length > 6) {
+        alert("Maximum 6 images allowed.");
+        e.target.value = '';
+        tempBannerBase64 = [];
+        return;
+    }
+    let totalSize = files.reduce((acc, f) => acc + f.size, 0);
+    if (totalSize > 40 * 1024 * 1024) {
+        alert("Total size exceeds 40 MB. Please select smaller images.");
+        e.target.value = '';
+        tempBannerBase64 = [];
+        return;
+    }
+    
+    Promise.all(files.map(f => new Promise(resolve => {
+        let r = new FileReader();
+        r.onload = ev => resolve(ev.target.result);
+        r.readAsDataURL(f);
+    }))).then(results => {
+        tempBannerBase64 = results;
+    });
+});
+
+function openBannerEdit() {
+    document.getElementById('editBannerText').value = document.getElementById('bannerTextEl').innerText;
+    document.getElementById('editBannerFiles').value = '';
+    document.getElementById('editBannerImgUrls').value = '';
+    tempBannerBase64 = [];
+    document.getElementById('bannerModal').style.display = 'block';
+}
+
+function saveBanner() {
+    const txt = document.getElementById('editBannerText').value.trim();
+    const urlsText = document.getElementById('editBannerImgUrls').value.trim();
+    
+    let newImgs = [];
+    if (tempBannerBase64.length > 0) {
+        newImgs = tempBannerBase64;
+    } else if (urlsText) {
+        newImgs = urlsText.split(',').map(s => s.trim()).filter(s => s);
+    } else {
+        newImgs = bannerImages; 
+    }
+
+    if (newImgs.length > 6) {
+        alert("Maximum 6 images allowed.");
+        return;
+    }
+
+    try {
+        localStorage.setItem('kosoepets_banner_imgs_v73', JSON.stringify(newImgs));
+        bannerImages = newImgs;
+        if(txt) {
+            localStorage.setItem('kosoepets_banner_txt_v73', txt);
+            document.getElementById('bannerTextEl').innerText = txt;
+        }
+        renderBannerSlideshow();
+        closeModal('bannerModal');
+    } catch (err) {
+        alert("Storage quota exceeded! The uploaded images are too large for local browser storage. Please upload fewer images or use Image Links (URLs) instead.");
+    }
+}
+
+
+// ==========================================
+// 4. DATABASE SYNC & PRODUCT UPLOAD (Max 5MB)
+// ==========================================
 async function fetchProducts() {
     if (useLocalFallback) {
-        let stored = localStorage.getItem('kosoepets_products_v72');
+        let stored = localStorage.getItem('kosoepets_products_v73');
         products = stored ? JSON.parse(stored) : [
             { id: 1, type: 'Cats', category: 'Food', name: 'ကြောင်စာ (Premium Dry Cat Food)', price: 25000, exp: '2028-05-01', img: 'https://images.unsplash.com/photo-1574635677940-d98c25dbff45?auto=format&fit=crop&w=400&q=80', specs: 'ထိုင်းနိုင်ငံထုတ် ကြောင်ကလေးတွေအရမ်းကြိုက်', created_at: 1731400001000 },
             { id: 2, type: 'Dogs', category: 'Snack', name: 'Beef Chew Bones (အမဲရိုးသရေစာ)', price: 8500, exp: '2027-08-11', img: 'https://images.unsplash.com/photo-1589924691995-400dc9ecc119?auto=format&fit=crop&w=400&q=80', specs: 'သွားသန့်ရှင်းစေပြီး အကြာကြီးဝါးနိုင်သည်', created_at: 1731400002000 },
@@ -158,10 +269,7 @@ async function fetchProducts() {
     }
 }
 
-// ==========================================
-// 4. IMAGE UPLOAD HANDLER (Max 5MB)
-// ==========================================
-function handleImageUpload(inputId, targetUrlId) {
+function handleProductImageUpload(inputId, targetUrlId) {
     const el = document.getElementById(inputId);
     if (!el) return;
     el.addEventListener('change', function (e) {
@@ -178,9 +286,8 @@ function handleImageUpload(inputId, targetUrlId) {
         }
     });
 }
-handleImageUpload('addImgFile', 'addImg');
-handleImageUpload('editImgFile', 'editImg');
-handleImageUpload('editBannerFile', 'editBannerImg');
+handleProductImageUpload('addImgFile', 'addImg');
+handleProductImageUpload('editImgFile', 'editImg');
 
 // ==========================================
 // 5. CART, INDIVIDUAL REMOVE & PDF VOUCHER
@@ -194,7 +301,7 @@ function addToCart(id) {
         } else {
             cart.push({ ...item, qty: 1 });
         }
-        saveCart();
+        processCartStateChange();
         alert(`${item.name} added to cart!`);
     }
 }
@@ -206,20 +313,21 @@ function updateCartQty(id, delta) {
         if (item.qty <= 0) {
             cart = cart.filter(c => Number(c.id) !== Number(id));
         }
-        saveCart();
-        renderCartItems();
+        processCartStateChange();
     }
 }
 
 function removeCartItem(id) {
     cart = cart.filter(c => Number(c.id) !== Number(id));
-    saveCart();
-    renderCartItems();
+    processCartStateChange();
 }
 
-function saveCart() {
-    localStorage.setItem('kosoepets_cart_v72', JSON.stringify(cart));
+function processCartStateChange() {
+    localStorage.setItem('kosoepets_cart_v73', JSON.stringify(cart));
     updateCartCount();
+    if (document.getElementById('cartModal').style.display === 'block') {
+        renderCartItems();
+    }
 }
 
 function updateCartCount() {
@@ -237,7 +345,7 @@ function renderCartItems() {
     listEl.innerHTML = '';
 
     if (cart.length === 0) {
-        listEl.innerHTML = `<p style="text-align:center; padding: 15px 0; color: #777;">${translations[currentLang].cart_empty}</p>`;
+        listEl.innerHTML = `<p style="text-align:center; padding: 25px 0; color: #777; font-weight:600; font-size:16px;">${translations[currentLang].cart_empty}</p>`;
         grandTotalEl.innerText = '0 MMK';
     } else {
         let grandTotal = 0;
@@ -285,10 +393,10 @@ function downloadCartPDF() {
         rowsHtml += `
             <tr>
                 <td>${idx + 1}</td>
-                <td><img src="${item.img}" style="width:38px;height:38px;object-fit:cover;border-radius:4px;vertical-align:middle;margin-right:8px;" onerror="this.style.display='none'">${item.name}</td>
-                <td style="text-align:center;">${item.qty}</td>
+                <td><img src="${item.img}" style="width:44px;height:44px;object-fit:cover;border-radius:6px;vertical-align:middle;margin-right:12px;" onerror="this.style.display='none'">${item.name}</td>
+                <td style="text-align:center; font-weight:bold;">${item.qty}</td>
                 <td style="text-align:right;">${unitPrice.toLocaleString()} MMK</td>
-                <td style="text-align:right;font-weight:bold;">${rowTotal.toLocaleString()} MMK</td>
+                <td style="text-align:right; font-weight:800; color:#333;">${rowTotal.toLocaleString()} MMK</td>
             </tr>
         `;
     });
@@ -305,27 +413,30 @@ function downloadCartPDF() {
         <head>
             <meta charset="UTF-8">
             <title>Ko_Soe_Love_Pets_Voucher_${dateStr}</title>
+            <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
             <style>
-                body { font-family: 'Segoe UI', Tahoma, sans-serif; padding: 30px; color: #333; position: relative; }
+                body { font-family: 'Nunito', Tahoma, sans-serif; padding: 40px; color: #333; position: relative; background: #fff; }
+                h1, strong, th, .grand { font-family: 'Baloo 2', cursive; }
                 .watermark {
-                    position: fixed; top: 45%; left: 50%; transform: translate(-50%, -50%) rotate(-30deg);
-                    font-size: 64px; font-weight: 800; color: rgba(255, 117, 140, 0.13);
+                    position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-30deg);
+                    font-size: 72px; font-family: 'Baloo 2', cursive; font-weight: 800; color: rgba(255, 117, 140, 0.08);
                     white-space: nowrap; pointer-events: none; z-index: 0; user-select: none;
                 }
-                .voucher-box { position: relative; z-index: 1; max-width: 720px; margin: 0 auto; border: 2px solid #fecfef; border-radius: 12px; padding: 25px; background: rgba(255,255,255,0.94); }
-                .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #ff758c; padding-bottom: 15px; margin-bottom: 20px; }
-                .header h1 { color: #ff758c; margin: 0; font-size: 26px; }
-                .meta { text-align: right; font-size: 13px; color: #555; }
-                table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-                th { background: #fecfef; color: #333; padding: 10px; text-align: left; font-size: 14px; }
-                td { padding: 10px; border-bottom: 1px solid #eee; font-size: 14px; }
-                .totals { width: 280px; margin-left: auto; font-size: 15px; }
-                .totals div { display: flex; justify-content: space-between; padding: 6px 0; }
-                .totals .grand { font-size: 18px; font-weight: bold; color: #ff758c; border-top: 2px solid #eee; padding-top: 10px; }
-                .footer { text-align: center; margin-top: 30px; font-weight: bold; color: #555; font-size: 15px; }
+                .voucher-box { position: relative; z-index: 1; max-width: 720px; margin: 0 auto; border: 2px solid #fecfef; border-radius: 16px; padding: 35px; background: rgba(255,255,255,0.95); }
+                .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #ff758c; padding-bottom: 20px; margin-bottom: 25px; }
+                .header h1 { color: #ff758c; margin: 0 0 5px 0; font-size: 32px; line-height: 1; }
+                .meta { text-align: right; font-size: 14px; color: #555; font-weight: 600; }
+                table { width: 100%; border-collapse: collapse; margin-bottom: 25px; }
+                th { background: #fecfef; color: #222; padding: 12px; text-align: left; font-size: 15px; font-weight: 800; }
+                td { padding: 12px; border-bottom: 1px solid #f0f0f0; font-size: 15px; font-weight: 600; }
+                .totals { width: 300px; margin-left: auto; font-size: 16px; font-weight: 700; color: #555; }
+                .totals div { display: flex; justify-content: space-between; padding: 8px 0; }
+                .totals .grand { font-size: 22px; font-weight: 800; color: #ff4757; border-top: 3px solid #fecfef; padding-top: 15px; margin-top: 5px; }
+                .footer { text-align: center; margin-top: 40px; font-weight: 800; color: #666; font-size: 18px; font-family: 'Baloo 2', cursive; letter-spacing: 0.5px; }
                 @media print {
                     body { padding: 0; }
                     .no-print { display: none; }
+                    .voucher-box { border: none; padding: 0; }
                 }
             </style>
         </head>
@@ -335,10 +446,10 @@ function downloadCartPDF() {
                 <div class="header">
                     <div>
                         <h1>● Ko Soe Love Pets</h1>
-                        <small>Viber: +959262597117 | TikTok: @ko.soe1376</small>
+                        <small style="font-weight:700; color:#666;">Viber: +959262597117 | TikTok: @ko.soe1376</small>
                     </div>
                     <div class="meta">
-                        <strong>${t.voucher_title}</strong><br>
+                        <strong style="font-size:20px; color:#333;">${t.voucher_title}</strong><br>
                         Date: ${dateStr} ${timeStr}
                     </div>
                 </div>
@@ -364,7 +475,7 @@ function downloadCartPDF() {
             </div>
             <script>
                 window.onload = function() {
-                    setTimeout(function() { window.print(); }, 400);
+                    setTimeout(function() { window.print(); }, 500);
                 };
             </script>
         </body>
@@ -429,7 +540,7 @@ function renderProducts(items) {
     productGrid.innerHTML = '';
     if (!items || items.length === 0) {
         const msg = searchInput.value.trim() !== '' ? translations[currentLang].no_match : 'No products available.';
-        productGrid.innerHTML = `<p style="grid-column: 1/-1; text-align: center; color: #666; padding: 20px;">${msg}</p>`;
+        productGrid.innerHTML = `<p style="grid-column: 1/-1; text-align: center; color: #666; font-weight:700; padding: 30px;">${msg}</p>`;
         return;
     }
     items.forEach(item => {
@@ -542,7 +653,7 @@ function savePassword() {
         return;
     }
     currentAdminPass = newP;
-    localStorage.setItem('kosoepets_pass_v72', newP);
+    localStorage.setItem('kosoepets_pass_v73', newP);
     closeModal('passModal');
     alert('Password updated successfully!');
 }
@@ -585,7 +696,7 @@ async function saveNewProduct() {
     if (useLocalFallback) {
         newProd.id = Date.now();
         products.unshift(newProd);
-        localStorage.setItem('kosoepets_products_v72', JSON.stringify(products));
+        localStorage.setItem('kosoepets_products_v73', JSON.stringify(products));
         fetchProducts();
     } else {
         const { error } = await supabaseClient.from('products').insert([newProd]);
@@ -612,7 +723,7 @@ async function saveEdit() {
         let index = products.findIndex(p => Number(p.id) === id);
         if (index > -1) {
             products[index] = { ...products[index], ...updates };
-            localStorage.setItem('kosoepets_products_v72', JSON.stringify(products));
+            localStorage.setItem('kosoepets_products_v73', JSON.stringify(products));
             fetchProducts();
         }
     } else {
@@ -630,7 +741,7 @@ async function deleteProduct(id) {
     if (confirm('Are you sure you want to delete this product?')) {
         if (useLocalFallback) {
             products = products.filter(p => Number(p.id) !== Number(id));
-            localStorage.setItem('kosoepets_products_v72', JSON.stringify(products));
+            localStorage.setItem('kosoepets_products_v73', JSON.stringify(products));
             fetchProducts();
         } else {
             const { error } = await supabaseClient.from('products').delete().eq('id', id);
@@ -643,29 +754,15 @@ async function deleteProduct(id) {
     }
 }
 
-// Banner, About & Contact Editors
-function openBannerEdit() {
-    document.getElementById('editBannerText').value = document.getElementById('bannerTextEl').innerText;
-    document.getElementById('editBannerImg').value = document.getElementById('bannerImgEl').src;
-    document.getElementById('bannerModal').style.display = 'block';
-}
-function saveBanner() {
-    const txt = document.getElementById('editBannerText').value;
-    const img = document.getElementById('editBannerImg').value;
-    document.getElementById('bannerTextEl').innerText = txt;
-    document.getElementById('bannerImgEl').src = img;
-    localStorage.setItem('kosoepets_banner_txt_v72', txt);
-    localStorage.setItem('kosoepets_banner_img_v72', img);
-    closeModal('bannerModal');
-}
+// About & Contact Editors
 function openAboutEdit() {
     document.getElementById('editAboutText').value = document.getElementById('aboutTextEl').innerText;
     document.getElementById('aboutModal').style.display = 'block';
 }
 function saveAbout() {
-    const txt = document.getElementById('editAboutText').value;
+    const txt = document.getElementById('editAboutText').value.trim();
     document.getElementById('aboutTextEl').innerText = txt;
-    localStorage.setItem('kosoepets_about_v72', txt);
+    localStorage.setItem('kosoepets_about_v73', txt);
     closeModal('aboutModal');
 }
 function openContactEdit() {
@@ -676,14 +773,18 @@ function openContactEdit() {
     document.getElementById('contactModal').style.display = 'block';
 }
 function saveContact() {
-    const phone = document.getElementById('editPhone').value;
-    const email = document.getElementById('editEmail').value;
-    const fb = document.getElementById('editFb').value;
-    const tiktok = document.getElementById('editTiktok').value;
+    const phone = document.getElementById('editPhone').value.trim();
+    const email = document.getElementById('editEmail').value.trim();
+    const fb = document.getElementById('editFb').value.trim();
+    const tiktok = document.getElementById('editTiktok').value.trim();
+    
+    let cleanPhone = phone.replace(/[^0-9+]/g, '');
+    document.getElementById('contactPhoneEl').href = `tel:${cleanPhone}`;
     document.getElementById('contactPhoneEl').innerHTML = `<i class="fa fa-phone" style="color:#ff9a9e;"></i> ${phone}`;
     document.getElementById('contactEmailEl').innerHTML = `<i class="fa fa-envelope" style="color:#ff9a9e;"></i> ${email}`;
     document.getElementById('fbLinkEl').href = fb;
     document.getElementById('tiktokLinkEl').href = tiktok;
-    localStorage.setItem('kosoepets_contact_v72', JSON.stringify({ phone, email, fb, tiktok }));
+    
+    localStorage.setItem('kosoepets_contact_v73', JSON.stringify({ phone, email, fb, tiktok }));
     closeModal('contactModal');
 }

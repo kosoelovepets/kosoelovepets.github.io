@@ -3,7 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ko Soe Love Pets - v7.2</title>
+    <title>Ko Soe Love Pets - v7.3</title>
+    <!-- Google Fonts for friendly, lovely atmosphere -->
+    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
     <!-- Supabase CDN -->
@@ -18,7 +20,7 @@
     <header>
         <div class="header-top">
             <div class="logo-container">
-                <h1><span style="color:#ff758c;">●</span> Ko Soe <span style="color:#ff9a9e;">Love Pets</span> <small class="version-badge">v7.2</small></h1>
+                <h1><span style="color:#ff758c;">●</span> Ko Soe <span style="color:#ff9a9e;">Love Pets</span> <small class="version-badge">v7.3</small></h1>
             </div>
             <div class="header-controls">
                 <input type="text" id="searchInput" placeholder="Search products...">
@@ -65,9 +67,11 @@
     </header>
 
     <div class="banner">
-        <img id="bannerImgEl" src="https://images.unsplash.com/photo-1541364983171-a8ba01e95cfc?auto=format&fit=crop&w=1200&q=80" alt="Pets banner">
-        <div class="banner-text" id="bannerTextEl">Welcome to Ko Soe Love Pets!</div>
-        <button id="editBannerBtn" class="edit-banner-btn hidden" onclick="openBannerEdit()"><i class="fa fa-edit"></i> Edit</button>
+        <div id="bannerSlideshow" class="slideshow-container">
+            <!-- Images will be injected here via JS -->
+        </div>
+        <div class="banner-text" id="bannerTextEl">Welcome To Ko Soe Love Pets</div>
+        <button id="editBannerBtn" class="edit-banner-btn hidden" onclick="openBannerEdit()"><i class="fa fa-edit"></i> Edit Banner</button>
     </div>
 
     <main>
@@ -88,7 +92,7 @@
             </div>
             <div class="contact-section">
                 <h3><span data-i18n="contact_us">Contact Us</span> <button id="editContactBtn" class="admin-btn hidden" onclick="openContactEdit()"><i class="fa fa-edit"></i> Edit</button></h3>
-                <p id="contactPhoneEl"><i class="fa fa-phone" style="color:#ff9a9e;"></i> +95 9 262 597 117</p>
+                <p><a id="contactPhoneEl" href="tel:+959262597117" class="phone-link"><i class="fa fa-phone" style="color:#ff9a9e;"></i> +95 9 262 597 117</a></p>
                 <p id="contactEmailEl"><i class="fa fa-envelope" style="color:#ff9a9e;"></i> contact@kosoelovepets.com</p>
                 <div class="social-links">
                     <a id="fbLinkEl" href="https://facebook.com" target="_blank"><i class="fab fa-facebook"></i> Facebook</a>
@@ -113,7 +117,7 @@
                 <span></span>
             </div>
             <div id="cartItemsList" class="cart-items-container">
-                <p style="text-align:center;" data-i18n="cart_empty">Your cart is empty.</p>
+                <!-- Sync Items render here -->
             </div>
             <div class="cart-summary-box">
                 <div class="cart-discount">
@@ -213,13 +217,13 @@
             <div class="modal-top-bar end">
                 <button type="button" class="close-btn" onclick="closeModal('bannerModal')" aria-label="Close">&times;</button>
             </div>
-            <h2>Edit Banner</h2>
-            <label>Banner Text:</label>
-            <input type="text" id="editBannerText">
-            <label>Upload Image (Max 5MB):</label>
-            <input type="file" id="editBannerFile" accept="image/*">
-            <label>OR Image Link (URL):</label>
-            <input type="text" id="editBannerImg">
+            <h2>Edit Banner (Slideshow)</h2>
+            <label>Banner Title:</label>
+            <input type="text" id="editBannerText" placeholder="Welcome To Ko Soe Love Pets">
+            <label>Upload Images (Max 6, Total &lt; 40MB):</label>
+            <input type="file" id="editBannerFiles" accept="image/*" multiple>
+            <label>OR Image Links (Comma separated URLs):</label>
+            <textarea id="editBannerImgUrls" rows="3" placeholder="https://image1.jpg, https://image2.png"></textarea>
             <button type="button" onclick="saveBanner()">Save Changes</button>
         </div>
     </div>
@@ -244,7 +248,7 @@
             </div>
             <h2>Edit Contact Us</h2>
             <label>Phone:</label>
-            <input type="text" id="editPhone">
+            <input type="text" id="editPhone" placeholder="+95 9 262 597 117">
             <label>Email:</label>
             <input type="text" id="editEmail">
             <label>Facebook URL:</label>
