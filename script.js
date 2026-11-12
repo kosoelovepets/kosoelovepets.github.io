@@ -2,8 +2,8 @@
 // 1. SUPABASE CONFIGURATION (Backend Sync)
 // ==========================================
 // IMPORTANT: GitHub Pages is static. To achieve Real-Time Sync, insert your Supabase credentials below.
-const SUPABASE_URL = 'YOUR_SUPABASE_URL_HERE'; 
-const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY_HERE';
+const SUPABASE_URL = 'https://moggsrqzhygvavsdcanh.supabase.co/rest/v1/'; 
+const SUPABASE_ANON_KEY = 'sb_publishable_v6HqFpBZkX4LJdOT54mMvQ_W3GS9cTY';
 
 let supabase = null;
 let useLocalFallback = false;
