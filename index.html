@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ko Soe Love Pets - v7.4.1</title>
+    <!-- Google Fonts for friendly, lovely atmosphere -->
+    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+    <!-- Supabase CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- HEIC/HEIF Image Conversion Library -->
+    <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
+</head>
+<body>
+    <!-- Top System Banner -->
+    <div id="sysBanner" class="sys-banner hidden">
+        <i class="fa fa-info-circle"></i> <span id="sysBannerText">Preview Mode: Supabase connection pending. Please configure your API keys in script.js.</span>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toastNotification" class="toast hidden">Successfully added to your cart!</div>
+
+    <header>
+        <div class="header-top">
+            <div class="logo-container">
+                <h1><span style="color:#ff758c;">●</span> Ko Soe <span style="color:#ff9a9e;">Love Pets</span> <small class="version-badge">v7.4.1</small></h1>
+            </div>
+            <div class="header-controls">
+                <input type="text" id="searchInput" placeholder="Search products...">
+                <div class="header-buttons">
+                    <select id="langSelect" onchange="switchLanguage()">
+                        <option value="en">🇬🇧 English</option>
+                        <option value="mm">🇲🇲 Myanmar</option>
+                    </select>
+                    <div id="cartCounter" class="cart-counter" onclick="openCartModal()">
+                        <i class="fa fa-shopping-cart"></i> <span id="cartCount">0</span>
+                    </div>
+                    <button id="changePassBtn" class="admin-btn hidden" onclick="openChangePass()"><i class="fa fa-key"></i> <span data-i18n="password">Password</span></button>
+                    <button id="loginBtn" class="login-btn" onclick="openLoginModal()" data-i18n="admin_login">Admin Login</button>
+                    <button id="logoutBtn" class="login-btn hidden" onclick="logout()" data-i18n="logout">Logout</button>
+                </div>
+            </div>
+        </div>
+        <nav>
+            <ul class="main-menu">
+                <li><a href="javascript:void(0)" class="menu-link" onclick="goHome()" data-i18n="home">Home</a></li>
+                <li class="has-sub"><a href="javascript:void(0)" class="menu-link" onclick="toggleSubMenu(event, this)"><span data-i18n="cats">Cats</span> <i class="fa fa-chevron-down" style="font-size:12px;"></i></a>
+                    <ul class="sub-menu">
+                        <li><a href="javascript:void(0)" onclick="filterProducts('Cats', 'Snack')" data-i18n="snack">Snack</a></li>
+                        <li><a href="javascript:void(0)" onclick="filterProducts('Cats', 'Food')" data-i18n="food">Food</a></li>
+                        <li><a href="javascript:void(0)" onclick="filterProducts('Cats', 'Medicine')" data-i18n="medicine">Medicine</a></li>
+                    </ul>
+                </li>
+                <li class="has-sub"><a href="javascript:void(0)" class="menu-link" onclick="toggleSubMenu(event, this)"><span data-i18n="dogs">Dogs</span> <i class="fa fa-chevron-down" style="font-size:12px;"></i></a>
+                    <ul class="sub-menu">
+                        <li><a href="javascript:void(0)" onclick="filterProducts('Dogs', 'Snack')" data-i18n="snack">Snack</a></li>
+                        <li><a href="javascript:void(0)" onclick="filterProducts('Dogs', 'Food')" data-i18n="food">Food</a></li>
+                        <li><a href="javascript:void(0)" onclick="filterProducts('Dogs', 'Medicine')" data-i18n="medicine">Medicine</a></li>
+                    </ul>
+                </li>
+                <li class="has-sub"><a href="javascript:void(0)" class="menu-link" onclick="toggleSubMenu(event, this)"><span data-i18n="accessories">Accessories</span> <i class="fa fa-chevron-down" style="font-size:12px;"></i></a>
+                    <ul class="sub-menu">
+                        <li><a href="javascript:void(0)" onclick="filterProducts('Accessories', 'Bowls')" data-i18n="bowls">Bowls</a></li>
+                        <li><a href="javascript:void(0)" onclick="filterProducts('Accessories', 'Toys')" data-i18n="toys">Toys</a></li>
+                        <li><a href="javascript:void(0)" onclick="filterProducts('Accessories', 'Gear')" data-i18n="gear">Gear</a></li>
+                    </ul>
+                </li>
+            </ul>
+        </nav>
+    </header>
+
+    <div class="banner">
+        <div id="bannerSlideshow" class="slideshow-container">
+            <!-- Images will be injected here via JS -->
+        </div>
+        <div class="banner-text" id="bannerTextEl">Welcome To Ko Soe Love Pets</div>
+        <button id="editBannerBtn" class="edit-banner-btn hidden" onclick="openBannerEdit()"><i class="fa fa-edit"></i> Edit Banner</button>
+    </div>
+
+    <main>
+        <h2 id="categoryTitle" data-i18n="all_items">All Hot Items</h2>
+        <div class="admin-actions">
+            <button id="addBtn" class="admin-btn hidden" onclick="openAddModal()"><i class="fa fa-plus"></i> <span data-i18n="add_new">Add New Product</span></button>
+        </div>
+        <div id="productGrid" class="product-grid">
+            <!-- Products will load here -->
+        </div>
+    </main>
+
+    <footer>
+        <div class="footer-content">
+            <div class="about-section">
+                <h3><span data-i18n="about_us">About Us</span> <button id="editAboutBtn" class="admin-btn hidden" onclick="openAboutEdit()"><i class="fa fa-edit"></i> Edit</button></h3>
+                <p id="aboutTextEl">Ko Soe Love Pets is your one-stop shop for all your furry friends' needs.</p>
+            </div>
+            <div class="contact-section">
+                <h3><span data-i18n="contact_us">Contact Us</span> <button id="editContactBtn" class="admin-btn hidden" onclick="openContactEdit()"><i class="fa fa-edit"></i> Edit</button></h3>
+                <p><a id="contactPhoneEl" href="tel:+959262597117" class="phone-link"><i class="fa fa-phone" style="color:#ff9a9e;"></i> +95 9 262 597 117</a></p>
+                <p id="contactEmailEl"><i class="fa fa-envelope" style="color:#ff9a9e;"></i> contact@kosoelovepets.com</p>
+                <div class="social-links">
+                    <a id="fbLinkEl" href="https://facebook.com" target="_blank"><i class="fab fa-facebook"></i> Facebook</a>
+                    <a id="tiktokLinkEl" href="https://www.tiktok.com/@ko.soe1376" target="_blank"><i class="fab fa-tiktok"></i> TikTok</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Cart Modal -->
+    <div id="cartModal" class="modal" onclick="handleOutsideModalClick(event, 'cartModal')">
+        <div class="modal-content cart-modal-content">
+            <div class="modal-top-bar">
+                <button type="button" class="pdf-btn" onclick="downloadCartPDF()"><i class="fa fa-file-pdf"></i> <span data-i18n="download_pdf">Download PDF</span></button>
+                <button type="button" class="close-btn" onclick="closeModal('cartModal')" aria-label="Close">&times;</button>
+            </div>
+            <h2 data-i18n="cart_title">Your Cart</h2>
+            <div class="cart-header">
+                <span data-i18n="product">Product</span>
+                <span data-i18n="qty">Qty</span>
+                <span data-i18n="total">Total (MMK)</span>
+                <span></span>
+            </div>
+            <div id="cartItemsList" class="cart-items-container">
+                <!-- Sync Items render here -->
+            </div>
+            <div class="cart-summary-box">
+                <div class="cart-discount">
+                    <span data-i18n="discount">Discount:</span> <span>0 MMK</span>
+                </div>
+                <div class="cart-grand-total">
+                    <strong data-i18n="grand_total">Grand Total:</strong> 
+                    <span id="cartGrandTotal">0 MMK</span>
+                </div>
+            </div>
+            <button type="button" id="viberBuyBtn" class="buy-viber-btn" onclick="redirectToViber()"><i class="fab fa-viber"></i> <span data-i18n="buy_viber">Buy via Viber</span></button>
+        </div>
+    </div>
+    
+    <!-- Image Zoom Modal -->
+    <div id="imageZoomModal" class="modal" onclick="handleOutsideModalClick(event, 'imageZoomModal')">
+        <div class="modal-content zoom-modal-content">
+            <div class="modal-top-bar end">
+                <button type="button" class="close-btn" onclick="closeModal('imageZoomModal')" aria-label="Close">&times;</button>
+            </div>
+            <img id="zoomedImg" src="" alt="Zoomed Product Image">
+        </div>
+    </div>
+
+    <!-- Add Product Modal -->
+    <div id="addModal" class="modal" onclick="handleOutsideModalClick(event, 'addModal')">
+        <div class="modal-content">
+            <div class="modal-top-bar end">
+                <button type="button" class="close-btn" onclick="closeModal('addModal')" aria-label="Close">&times;</button>
+            </div>
+            <h2 data-i18n="add_new">Add New Product</h2>
+            <label>Type:</label>
+            <select id="addType"><option value="Cats">Cats</option><option value="Dogs">Dogs</option><option value="Accessories">Accessories</option></select>
+            <label>Category:</label>
+            <select id="addCategory"><option value="Snack">Snack</option><option value="Food">Food</option><option value="Medicine">Medicine</option><option value="Bowls">Bowls</option><option value="Toys">Toys</option><option value="Gear">Gear</option></select>
+            <label>Product Name:</label>
+            <input type="text" id="addName">
+            <label>Upload Image (JPG/PNG/WEBP/HEIC/GIF/BMP - Max 5MB):</label>
+            <input type="file" id="addImgFile" accept="image/*,.heic,.heif" capture="environment">
+            <div id="addImgLoading" class="hidden" style="color: #2ed573; font-size: 13px; font-weight: bold; text-align: center; margin-top: -5px;">Processing image...</div>
+            <label>OR Image Link (URL):</label>
+            <input type="text" id="addImg">
+            <label>Price (Number only - MMK will auto-append):</label>
+            <input type="number" id="addPrice" placeholder="e.g. 5000">
+            <label>Expiry Date:</label>
+            <input type="text" id="addExp" placeholder="YYYY-MM-DD or N/A">
+            <label>Specs:</label>
+            <textarea id="addSpecs"></textarea>
+            <button type="button" id="saveAddBtn" onclick="saveNewProduct()">Save Product</button>
+        </div>
+    </div>
+
+    <!-- Edit Product Modal -->
+    <div id="editModal" class="modal" onclick="handleOutsideModalClick(event, 'editModal')">
+        <div class="modal-content">
+            <div class="modal-top-bar end">
+                <button type="button" class="close-btn" onclick="closeModal('editModal')" aria-label="Close">&times;</button>
+            </div>
+            <h2>Edit Product</h2>
+            <input type="hidden" id="editId">
+            <label>Product Name:</label>
+            <input type="text" id="editName">
+            <label>Upload Image (JPG/PNG/WEBP/HEIC/GIF/BMP - Max 5MB):</label>
+            <input type="file" id="editImgFile" accept="image/*,.heic,.heif" capture="environment">
+            <div id="editImgLoading" class="hidden" style="color: #2ed573; font-size: 13px; font-weight: bold; text-align: center; margin-top: -5px;">Processing image...</div>
+            <label>OR Image Link (URL):</label>
+            <input type="text" id="editImg">
+            <label>Price (Number only):</label>
+            <input type="number" id="editPrice">
+            <label>Expiry Date:</label>
+            <input type="text" id="editExp">
+            <label>Specs:</label>
+            <textarea id="editSpecs"></textarea>
+            <button type="button" id="saveEditBtn" onclick="saveEdit()">Save Changes</button>
+        </div>
+    </div>
+
+    <!-- Login Modal -->
+    <div id="loginModal" class="modal" onclick="handleOutsideModalClick(event, 'loginModal')">
+        <div class="modal-content">
+            <div class="modal-top-bar end">
+                <button type="button" class="close-btn" onclick="closeModal('loginModal')" aria-label="Close">&times;</button>
+            </div>
+            <h2 data-i18n="admin_login">Admin Login</h2>
+            <input type="text" id="username" placeholder="Username (admin)" autocomplete="username">
+            <input type="password" id="password" placeholder="Password" autocomplete="current-password" onkeydown="if(event.key==='Enter') login()">
+            <button type="button" onclick="login()">Login</button>
+            <p id="loginError" class="error"></p>
+        </div>
+    </div>
+
+    <!-- Change Password Modal -->
+    <div id="passModal" class="modal" onclick="handleOutsideModalClick(event, 'passModal')">
+        <div class="modal-content">
+            <div class="modal-top-bar end">
+                <button type="button" class="close-btn" onclick="closeModal('passModal')" aria-label="Close">&times;</button>
+            </div>
+            <h2>Change Password</h2>
+            <input type="password" id="oldPass" placeholder="Current Password">
+            <input type="password" id="newPass" placeholder="New Password">
+            <button type="button" onclick="savePassword()">Update Password</button>
+            <p id="passError" class="error"></p>
+        </div>
+    </div>
+
+    <!-- Edit Banner Modal -->
+    <div id="bannerModal" class="modal" onclick="handleOutsideModalClick(event, 'bannerModal')">
+        <div class="modal-content">
+            <div class="modal-top-bar end">
+                <button type="button" class="close-btn" onclick="closeModal('bannerModal')" aria-label="Close">&times;</button>
+            </div>
+            <h2>Edit Banner (Slideshow)</h2>
+            <label>Banner Title:</label>
+            <input type="text" id="editBannerText" placeholder="Welcome To Ko Soe Love Pets">
+            <label>Upload Images (Max 6, Total &lt; 40MB):</label>
+            <input type="file" id="editBannerFiles" accept="image/*,.heic,.heif" multiple capture="environment">
+            <div id="bannerImgLoading" class="hidden" style="color: #2ed573; font-size: 13px; font-weight: bold; text-align: center; margin-top: -5px;">Processing images...</div>
+            <label>OR Image Links (Comma separated URLs):</label>
+            <textarea id="editBannerImgUrls" rows="3" placeholder="https://image1.jpg, https://image2.png"></textarea>
+            <button type="button" id="saveBannerBtn" onclick="saveBanner()">Save Changes</button>
+        </div>
+    </div>
+
+    <!-- Edit About Modal -->
+    <div id="aboutModal" class="modal" onclick="handleOutsideModalClick(event, 'aboutModal')">
+        <div class="modal-content">
+            <div class="modal-top-bar end">
+                <button type="button" class="close-btn" onclick="closeModal('aboutModal')" aria-label="Close">&times;</button>
+            </div>
+            <h2>Edit About Us</h2>
+            <textarea id="editAboutText" rows="5"></textarea>
+            <button type="button" onclick="saveAbout()">Save Changes</button>
+        </div>
+    </div>
+
+    <!-- Edit Contact Modal -->
+    <div id="contactModal" class="modal" onclick="handleOutsideModalClick(event, 'contactModal')">
+        <div class="modal-content">
+            <div class="modal-top-bar end">
+                <button type="button" class="close-btn" onclick="closeModal('contactModal')" aria-label="Close">&times;</button>
+            </div>
+            <h2>Edit Contact Us</h2>
+            <label>Phone:</label>
+            <input type="text" id="editPhone" placeholder="+95 9 262 597 117">
+            <label>Email:</label>
+            <input type="text" id="editEmail">
+            <label>Facebook URL:</label>
+            <input type="text" id="editFb">
+            <label>TikTok URL:</label>
+            <input type="text" id="editTiktok">
+            <button type="button" onclick="saveContact()">Save Changes</button>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
