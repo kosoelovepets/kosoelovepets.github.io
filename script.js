@@ -282,10 +282,14 @@ async function fetchProducts() {
     }
 }
 
-function handleProductImageUpload(inputId, targetUrlId) {
+// State for pending uploaded images to prevent blocking the UI early
+let pendingAddImgUrl = '';
+let pendingEditImgUrl = '';
+
+function setupProductImageUpload(inputId, targetUrlId, loadingId, btnId, urlStateSetter) {
     const el = document.getElementById(inputId);
     if (!el) return;
-    el.addEventListener('change', function (e) {
+    el.addEventListener('change', async function (e) {
         const file = e.target.files[0];
         if (file) {
             if (file.size > 5 * 1024 * 1024) {
@@ -293,14 +297,38 @@ function handleProductImageUpload(inputId, targetUrlId) {
                 el.value = '';
                 return;
             }
-            const reader = new FileReader();
-            reader.onload = function (evt) { document.getElementById(targetUrlId).value = evt.target.result; };
-            reader.readAsDataURL(file);
+            
+            document.getElementById(loadingId).classList.remove('hidden');
+            document.getElementById(btnId).disabled = true;
+            
+            try {
+                 if (!useLocalFallback && supabaseClient) {
+                     let url = await processAndUploadImage(file);
+                     document.getElementById(targetUrlId).value = url;
+                     urlStateSetter(url);
+                 } else {
+                     // Local fallback Base64
+                     const reader = new FileReader();
+                     reader.onload = function (evt) { 
+                         document.getElementById(targetUrlId).value = evt.target.result;
+                         urlStateSetter(evt.target.result);
+                     };
+                     reader.readAsDataURL(file);
+                 }
+            } catch(err) {
+                 alert(err.message);
+                 el.value = '';
+            } finally {
+                 document.getElementById(loadingId).classList.add('hidden');
+                 document.getElementById(btnId).disabled = false;
+            }
         }
     });
 }
-handleProductImageUpload('addImgFile', 'addImg');
-handleProductImageUpload('editImgFile', 'editImg');
+
+setupProductImageUpload('addImgFile', 'addImg', 'addImgLoading', 'saveAddBtn', (url) => { pendingAddImgUrl = url; });
+setupProductImageUpload('editImgFile', 'editImg', 'editImgLoading', 'saveEditBtn', (url) => { pendingEditImgUrl = url; });
+
 
 // ==========================================
 // 5. CART, INDIVIDUAL REMOVE & PDF VOUCHER
@@ -335,14 +363,11 @@ function removeCartItem(id) {
     processCartStateChange();
 }
 
-// CENTRALIZED STATE MANAGER: The single source of truth
 function processCartStateChange() {
     localStorage.setItem('kosoepets_cart_v74', JSON.stringify(cart));
-    updateCartCount(); // Instantly update the top-right icon
-    
-    // Instantly update the cart modal if it is currently open
+    updateCartCount();
     if (document.getElementById('cartModal').style.display === 'block') {
-        renderCartItems(); 
+        renderCartItems();
     }
 }
 
@@ -357,17 +382,16 @@ window.addEventListener('storage', (e) => {
     }
 });
 
-// CART COUNTER: Calculates exact sum of all quantities
 function updateCartCount() {
     const count = cart.reduce((sum, item) => sum + item.qty, 0);
     const counterBadge = document.getElementById('cartCount');
     counterBadge.innerText = count;
     
-    // Subtle visual "pop" effect to confirm the addition
+    // Quick scale animation
     counterBadge.parentElement.style.transform = 'scale(1.2)';
     setTimeout(() => {
         counterBadge.parentElement.style.transform = 'scale(1)';
-    }, 150);
+    }, 200);
 }
 
 function openCartModal() {
@@ -718,13 +742,14 @@ function openEdit(id) {
 }
 
 async function saveNewProduct() {
+    const finalImg = document.getElementById('addImg').value.trim() || pendingAddImgUrl || 'https://via.placeholder.com/400x300?text=No+Image';
     const newProd = {
         type: document.getElementById('addType').value,
         category: document.getElementById('addCategory').value,
         name: document.getElementById('addName').value.trim() || 'New Product',
         price: parseInt(document.getElementById('addPrice').value) || 0,
         exp: document.getElementById('addExp').value.trim() || 'N/A',
-        img: document.getElementById('addImg').value.trim() || 'https://via.placeholder.com/400x300?text=No+Image',
+        img: finalImg,
         specs: document.getElementById('addSpecs').value.trim() || '',
         created_at: Date.now()
     };
@@ -747,9 +772,10 @@ async function saveNewProduct() {
 
 async function saveEdit() {
     const id = Number(document.getElementById('editId').value);
+    const finalImg = document.getElementById('editImg').value.trim() || pendingEditImgUrl;
     const updates = {
         name: document.getElementById('editName').value.trim(),
-        img: document.getElementById('editImg').value.trim(),
+        img: finalImg,
         price: parseInt(document.getElementById('editPrice').value) || 0,
         exp: document.getElementById('editExp').value.trim(),
         specs: document.getElementById('editSpecs').value.trim()
