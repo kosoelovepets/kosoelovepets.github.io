@@ -201,31 +201,94 @@ function renderBannerSlideshow() {
 // Add Supabase Storage Bucket Name Constant
 const SUPABASE_BUCKET = 'product-images';
 
-// Helper to convert HEIC/HEIF or resize large images, then upload to Supabase Storage (Cache-busting URL)
+// Helper to safely upload standard images directly, and only convert genuine HEIC/HEIF files
 async function processAndUploadImage(file) {
     if (!supabaseClient) throw new Error("Supabase is not connected.");
     if (file.size > 5 * 1024 * 1024) throw new Error("File exceeds 5MB limit.");
 
     let processedFile = file;
+    const lowerName = (file.name || '').toLowerCase();
+    const mime = (file.type || '').toLowerCase();
 
-    // Convert HEIC/HEIF to JPEG
-    if (file.name.toLowerCase().endsWith('.heic') || file.name.toLowerCase().endsWith('.heif') || file.type === 'image/heic' || file.type === 'image/heif') {
-        if (typeof heic2any !== 'undefined') {
+    // Standard browser-native image formats: NEVER run through heic2any
+    const isStandardImage =
+        mime === 'image/jpeg' ||
+        mime === 'image/jpg' ||
+        mime === 'image/png' ||
+        mime === 'image/webp' ||
+        mime === 'image/gif' ||
+        mime === 'image/bmp' ||
+        /\.(jpe?g|png|webp|gif|bmp)$/i.test(lowerName);
+
+    if (!isStandardImage) {
+        // Only run HEIC conversion if the file is NOT a standard browser format
+        let isRealHeic = false;
+        try {
+            const headerBuf = await file.slice(0, 16).arrayBuffer();
+            const headerStr = new TextDecoder('ascii').decode(headerBuf);
+            if (
+                headerStr.includes('ftypheic') ||
+                headerStr.includes('ftypheix') ||
+                headerStr.includes('ftyphevc') ||
+                headerStr.includes('ftypmif1') ||
+                headerStr.includes('ftypmsf1')
+            ) {
+                isRealHeic = true;
+            }
+        } catch (_) {}
+
+        if (isRealHeic || lowerName.endsWith('.heic') || lowerName.endsWith('.heif') || mime === 'image/heic' || mime === 'image/heif') {
+            if (typeof heic2any === 'undefined') {
+                throw new Error("HEIC conversion library not loaded.");
+            }
             try {
-                const convertedBlob = await heic2any({
+                const resultBlob = await heic2any({
                     blob: file,
                     toType: "image/jpeg",
-                    quality: 0.8
+                    quality: 0.85
                 });
-                processedFile = new File([convertedBlob], file.name.replace(/\.hei[cf]$/i, '.jpg'), { type: "image/jpeg" });
+                const finalBlob = Array.isArray(resultBlob) ? resultBlob[0] : resultBlob;
+                const cleanBase = lowerName.replace(/\.hei[cf]$/i, '') || `photo_${Date.now()}`;
+                processedFile = new File([finalBlob], `${cleanBase}.jpg`, { type: "image/jpeg" });
             } catch (e) {
                 console.error("HEIC conversion failed:", e);
-                throw new Error("Failed to convert HEIC image format.");
+                throw new Error("Could not convert HEIC file. Please select a JPG, PNG, or WEBP photo.");
             }
-        } else {
-             throw new Error("HEIC conversion library not loaded.");
         }
     }
+
+    // Ensure a valid file extension
+    const mimeToExt = {
+        'image/jpeg': 'jpg',
+        'image/jpg': 'jpg',
+        'image/png': 'png',
+        'image/webp': 'webp',
+        'image/gif': 'gif',
+        'image/bmp': 'bmp'
+    };
+    const rawExt = (processedFile.name && processedFile.name.includes('.'))
+        ? processedFile.name.split('.').pop().toLowerCase()
+        : '';
+    const validExts = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp'];
+    const fileExt = validExts.includes(rawExt) ? rawExt : (mimeToExt[processedFile.type] || 'jpg');
+
+    const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+    const filePath = `products/${fileName}`;
+
+    const { error: uploadError } = await supabaseClient.storage
+        .from(SUPABASE_BUCKET)
+        .upload(filePath, processedFile, {
+            contentType: processedFile.type || 'image/jpeg'
+        });
+
+    if (uploadError) {
+        console.error("Storage upload error:", uploadError);
+        throw new Error("Failed to upload image to storage: " + uploadError.message);
+    }
+
+    const { data } = supabaseClient.storage.from(SUPABASE_BUCKET).getPublicUrl(filePath);
+    return data.publicUrl;
+}
 
     // Upload to Supabase Storage with Cache-busting name
     const fileExt = processedFile.name.split('.').pop();
