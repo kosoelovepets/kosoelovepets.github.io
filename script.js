@@ -639,23 +639,45 @@ function downloadCartPDF() {
     voucherWindow.document.close();
 }
 
-function redirectToViber() {
+async function redirectToViber() {
     if (cart.length === 0) return;
 
     const t = translations[currentLang];
     let grandTotal = 0;
-    let orderSummary = `Items | Selected products%0A`;
-    cart.forEach(item => {
+    let orderSummary = `Ko Soe Love Pets - Order\n`;
+    orderSummary += `------------------------\n`;
+    cart.forEach((item, idx) => {
         let rowTotal = Number(item.price) * item.qty;
         grandTotal += rowTotal;
-        orderSummary += `${t.product} | ${item.name}%0A${t.qty} | ${item.qty}%0APrice | ${Number(item.price).toLocaleString()} MMK%0A-%0A`;
+        orderSummary += `${idx + 1}. ${item.name}\n`;
+        orderSummary += `   ${t.qty}: ${item.qty} x ${Number(item.price).toLocaleString()} MMK = ${rowTotal.toLocaleString()} MMK\n`;
     });
-    orderSummary += `${t.grand_total} ${grandTotal.toLocaleString()} MMK%0A`;
-    orderSummary += `${t.discount} 0 MMK%0A%0A`;
+    orderSummary += `------------------------\n`;
+    orderSummary += `${t.discount} 0 MMK\n`;
+    orderSummary += `${t.grand_total} ${grandTotal.toLocaleString()} MMK\n\n`;
     orderSummary += `${t.thank_you}`;
 
-    const viberUrl = `viber://chat?number=%2B959262597117&text=${orderSummary}`;
-    window.location.href = viberUrl;
+    // Copy order summary to clipboard so customer can paste directly into Viber chat
+    try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(orderSummary);
+        } else {
+            const tempArea = document.createElement('textarea');
+            tempArea.value = orderSummary;
+            document.body.appendChild(tempArea);
+            tempArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempArea);
+        }
+        alert(currentLang === 'mm'
+            ? "အော်ဒါစာရင်းကို Copy ကူးပြီးပါပြီ။ Viber ပွင့်လာပါက Paste နှိပ်ပြီး ပို့ပေးပါ။"
+            : "Order details copied! When Viber opens, simply tap Paste and Send.");
+    } catch (err) {
+        console.warn("Clipboard copy failed:", err);
+    }
+
+    // Clean Viber deep link without broken parameters
+    window.location.href = "viber://chat?number=%2B959262597117";
 }
 
 // ==========================================
