@@ -82,7 +82,7 @@ let products = [];
 let currentProducts = [];
 let cart = JSON.parse(localStorage.getItem('kosoepets_cart_v741')) || [];
 let isAdmin = false;
-let currentAdminPass = localStorage.getItem('kosoepets_pass_v741') || 'admin';
+let currentAdminPass = 'admin'; // Will be fetched & synced from database
 
 const productGrid = document.getElementById('productGrid');
 const searchInput = document.getElementById('searchInput');
@@ -156,16 +156,19 @@ async function fetchSettings() {
         let imgs = JSON.parse(localStorage.getItem('kosoepets_banner_imgs_v741'));
         if (txt) document.getElementById('bannerTextEl').innerText = txt;
         if (imgs && imgs.length > 0) bannerImages = imgs;
+        let savedPass = localStorage.getItem('kosoepets_pass_v741');
+        if (savedPass) currentAdminPass = savedPass;
         renderBannerSlideshow();
     } else {
         const { data, error } = await supabaseClient.from('store_settings').select('*').eq('id', 1).single();
         if (!error && data) {
             if (data.banner_title) document.getElementById('bannerTextEl').innerText = data.banner_title;
             if (data.banner_images && data.banner_images.length > 0) bannerImages = data.banner_images;
+            if (data.admin_password) currentAdminPass = data.admin_password;
             renderBannerSlideshow();
         }
 
-        // Subscribe to real-time changes specifically for the banner
+        // Subscribe to real-time changes
         supabaseClient.channel('public:store_settings')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'store_settings' }, () => {
                 fetchSettings(); // Auto-refresh all connected devices
@@ -879,7 +882,7 @@ function openChangePass() {
     document.getElementById('passModal').style.display = 'block';
 }
 
-function savePassword() {
+async function savePassword() {
     const oldP = document.getElementById('oldPass').value.trim();
     const newP = document.getElementById('newPass').value.trim();
     if (oldP !== currentAdminPass) {
@@ -890,12 +893,28 @@ function savePassword() {
         document.getElementById('passError').innerText = 'New password cannot be empty!';
         return;
     }
-    currentAdminPass = newP;
-    localStorage.setItem('kosoepets_pass_v741', newP);
-    closeModal('passModal');
-    alert('Password updated successfully!');
-}
 
+    if (useLocalFallback) {
+        currentAdminPass = newP;
+        localStorage.setItem('kosoepets_pass_v741', newP);
+        closeModal('passModal');
+        alert('Password updated successfully!');
+    } else {
+        const { error } = await supabaseClient
+            .from('store_settings')
+            .update({ admin_password: newP })
+            .eq('id', 1);
+
+        if (error) {
+            document.getElementById('passError').innerText = 'Database error: ' + error.message;
+            return;
+        }
+
+        currentAdminPass = newP;
+        closeModal('passModal');
+        alert('Password updated successfully on all devices!');
+    }
+}
 function openAddModal() {
     document.getElementById('addName').value = '';
     document.getElementById('addImg').value = '';
