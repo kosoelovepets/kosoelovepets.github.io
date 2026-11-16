@@ -201,7 +201,7 @@ function renderBannerSlideshow() {
 // Add Supabase Storage Bucket Name Constant
 const SUPABASE_BUCKET = 'product-images';
 
-// Helper to safely upload standard images directly, and only convert genuine HEIC/HEIF files
+// Helper to safely upload standard images/screenshots directly, and only convert genuine HEIC/HEIF files
 async function processAndUploadImage(file) {
     if (!supabaseClient) throw new Error("Supabase is not connected.");
     if (file.size > 5 * 1024 * 1024) throw new Error("File exceeds 5MB limit.");
@@ -210,98 +210,91 @@ async function processAndUploadImage(file) {
     const lowerName = (file.name || '').toLowerCase();
     const mime = (file.type || '').toLowerCase();
 
-    // Standard browser-native image formats: NEVER run through heic2any
+    // Read first 16 bytes to check magic signature (PNG, JPEG, WEBP, GIF, BMP vs genuine HEIC)
+    let headerBytes = new Uint8Array(0);
+    let headerStr = '';
+    try {
+        const headerBuf = await file.slice(0, 16).arrayBuffer();
+        headerBytes = new Uint8Array(headerBuf);
+        headerStr = new TextDecoder('ascii').decode(headerBuf);
+    } catch (_) {}
+
+    const isPngMagic = headerBytes.length >= 4 && headerBytes[0] === 0x89 && headerBytes[1] === 0x50 && headerBytes[2] === 0x4E && headerBytes[3] === 0x47;
+    const isJpegMagic = headerBytes.length >= 3 && headerBytes[0] === 0xFF && headerBytes[1] === 0xD8 && headerBytes[2] === 0xFF;
+    const isGifMagic = headerStr.startsWith('GIF8');
+    const isWebpMagic = headerStr.startsWith('RIFF') && headerStr.includes('WEBP');
+    const isBmpMagic = headerStr.startsWith('BM');
+
     const isStandardImage =
-        mime === 'image/jpeg' ||
-        mime === 'image/jpg' ||
-        mime === 'image/png' ||
-        mime === 'image/webp' ||
-        mime === 'image/gif' ||
-        mime === 'image/bmp' ||
+        isPngMagic || isJpegMagic || isGifMagic || isWebpMagic || isBmpMagic ||
+        ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif', 'image/bmp'].includes(mime) ||
         /\.(jpe?g|png|webp|gif|bmp)$/i.test(lowerName);
 
-    if (!isStandardImage) {
-        // Only run HEIC conversion if the file is NOT a standard browser format
-        let isRealHeic = false;
-        try {
-            const headerBuf = await file.slice(0, 16).arrayBuffer();
-            const headerStr = new TextDecoder('ascii').decode(headerBuf);
-            if (
-                headerStr.includes('ftypheic') ||
-                headerStr.includes('ftypheix') ||
-                headerStr.includes('ftyphevc') ||
-                headerStr.includes('ftypmif1') ||
-                headerStr.includes('ftypmsf1')
-            ) {
-                isRealHeic = true;
-            }
-        } catch (_) {}
+    const isRealHeic =
+        !isStandardImage && (
+            headerStr.includes('ftypheic') ||
+            headerStr.includes('ftypheix') ||
+            headerStr.includes('ftyphevc') ||
+            headerStr.includes('ftypmif1') ||
+            headerStr.includes('ftypmsf1') ||
+            lowerName.endsWith('.heic') ||
+            lowerName.endsWith('.heif') ||
+            mime === 'image/heic' ||
+            mime === 'image/heif'
+        );
 
-        if (isRealHeic || lowerName.endsWith('.heic') || lowerName.endsWith('.heif') || mime === 'image/heic' || mime === 'image/heif') {
-            if (typeof heic2any === 'undefined') {
-                throw new Error("HEIC conversion library not loaded.");
-            }
-            try {
-                const resultBlob = await heic2any({
-                    blob: file,
-                    toType: "image/jpeg",
-                    quality: 0.85
-                });
-                const finalBlob = Array.isArray(resultBlob) ? resultBlob[0] : resultBlob;
-                const cleanBase = lowerName.replace(/\.hei[cf]$/i, '') || `photo_${Date.now()}`;
-                processedFile = new File([finalBlob], `${cleanBase}.jpg`, { type: "image/jpeg" });
-            } catch (e) {
-                console.error("HEIC conversion failed:", e);
-                throw new Error("Could not convert HEIC file. Please select a JPG, PNG, or WEBP photo.");
-            }
+    if (isRealHeic) {
+        if (typeof heic2any === 'undefined') {
+            throw new Error("HEIC conversion library not loaded.");
+        }
+        try {
+            const resultBlob = await heic2any({
+                blob: file,
+                toType: "image/jpeg",
+                quality: 0.85
+            });
+            const finalBlob = Array.isArray(resultBlob) ? resultBlob[0] : resultBlob;
+            const cleanBase = lowerName.replace(/\.hei[cf]$/i, '') || `photo_${Date.now()}`;
+            processedFile = new File([finalBlob], `${cleanBase}.jpg`, { type: "image/jpeg" });
+        } catch (e) {
+            console.error("HEIC conversion failed:", e);
+            throw new Error("Could not convert HEIC file. Please select a JPG, PNG, or WEBP photo.");
         }
     }
 
-    // Ensure a valid file extension
-    const mimeToExt = {
-        'image/jpeg': 'jpg',
-        'image/jpg': 'jpg',
-        'image/png': 'png',
-        'image/webp': 'webp',
-        'image/gif': 'gif',
-        'image/bmp': 'bmp'
-    };
-    const rawExt = (processedFile.name && processedFile.name.includes('.'))
-        ? processedFile.name.split('.').pop().toLowerCase()
-        : '';
-    const validExts = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp'];
-    const fileExt = validExts.includes(rawExt) ? rawExt : (mimeToExt[processedFile.type] || 'jpg');
+    // Determine clean file extension and MIME type from magic bytes or filename
+    let fileExt = 'png';
+    let contentType = processedFile.type || 'image/png';
+
+    if (isJpegMagic || mime === 'image/jpeg' || mime === 'image/jpg' || /\.jpe?g$/i.test(processedFile.name || '')) {
+        fileExt = 'jpg';
+        contentType = 'image/jpeg';
+    } else if (isPngMagic || mime === 'image/png' || /\.png$/i.test(processedFile.name || '')) {
+        fileExt = 'png';
+        contentType = 'image/png';
+    } else if (isWebpMagic || mime === 'image/webp' || /\.webp$/i.test(processedFile.name || '')) {
+        fileExt = 'webp';
+        contentType = 'image/webp';
+    } else if (isGifMagic || mime === 'image/gif' || /\.gif$/i.test(processedFile.name || '')) {
+        fileExt = 'gif';
+        contentType = 'image/gif';
+    } else if (isBmpMagic || mime === 'image/bmp' || /\.bmp$/i.test(processedFile.name || '')) {
+        fileExt = 'bmp';
+        contentType = 'image/bmp';
+    }
 
     const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
     const filePath = `products/${fileName}`;
 
     const { error: uploadError } = await supabaseClient.storage
         .from(SUPABASE_BUCKET)
-        .upload(filePath, processedFile, {
-            contentType: processedFile.type || 'image/jpeg'
-        });
+        .upload(filePath, processedFile, { contentType });
 
     if (uploadError) {
         console.error("Storage upload error:", uploadError);
         throw new Error("Failed to upload image to storage: " + uploadError.message);
     }
 
-    const { data } = supabaseClient.storage.from(SUPABASE_BUCKET).getPublicUrl(filePath);
-    return data.publicUrl;
-}
-
-    // Upload to Supabase Storage with Cache-busting name
-    const fileExt = processedFile.name.split('.').pop();
-    const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
-    const filePath = `products/${fileName}`;
-
-    const { error: uploadError } = await supabaseClient.storage.from(SUPABASE_BUCKET).upload(filePath, processedFile);
-    if (uploadError) {
-        console.error("Storage upload error:", uploadError);
-        throw new Error("Failed to upload image to storage: " + uploadError.message);
-    }
-
-    // Get public URL
     const { data } = supabaseClient.storage.from(SUPABASE_BUCKET).getPublicUrl(filePath);
     return data.publicUrl;
 }
