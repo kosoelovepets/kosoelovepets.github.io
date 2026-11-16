@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ko Soe Love Pets - v7.4.1</title>
+    <title>Ko Soe Love Pets - v7.5</title>
     <!-- Google Fonts for friendly, lovely atmosphere -->
     <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -25,7 +25,7 @@
     <header>
         <div class="header-top">
             <div class="logo-container">
-                <h1><span style="color:#ff758c;">●</span> Ko Soe <span style="color:#ff9a9e;">Love Pets</span> <small class="version-badge">v7.4.1</small></h1>
+                <h1><span style="color:#ff758c;">●</span> Ko Soe <span style="color:#ff9a9e;">Love Pets</span> <small class="version-badge">v7.5</small></h1>
             </div>
             <div class="header-controls">
                 <input type="text" id="searchInput" placeholder="Search products...">
@@ -37,8 +37,9 @@
                     <div id="cartCounter" class="cart-counter" onclick="openCartModal()">
                         <i class="fa fa-shopping-cart"></i> <span id="cartCount">0</span>
                     </div>
+                    <span id="staffBadge" class="staff-badge hidden"></span>
                     <button id="changePassBtn" class="admin-btn hidden" onclick="openChangePass()"><i class="fa fa-key"></i> <span data-i18n="password">Password</span></button>
-                    <button id="loginBtn" class="login-btn" onclick="openLoginModal()" data-i18n="admin_login">Admin Login</button>
+                    <button id="loginBtn" class="login-btn" onclick="openLoginModal()" data-i18n="admin_login">Staff Login</button>
                     <button id="logoutBtn" class="login-btn hidden" onclick="logout()" data-i18n="logout">Logout</button>
                 </div>
             </div>
@@ -69,9 +70,20 @@
                 </li>
             </ul>
         </nav>
+
+        <!-- Role-Based Staff Workspace Navigation Bar (Visible only when logged in) -->
+        <div id="staffNavBar" class="staff-nav-bar hidden">
+            <div class="staff-nav-inner">
+                <button type="button" class="staff-tab active" id="tabBtnDashboard" onclick="switchStaffView('dashboard')"><i class="fa fa-chart-pie"></i> Dashboard</button>
+                <button type="button" class="staff-tab" id="tabBtnProducts" onclick="switchStaffView('products')"><i class="fa fa-box-open"></i> Products</button>
+                <button type="button" class="staff-tab hidden" id="tabBtnUsers" onclick="switchStaffView('users')"><i class="fa fa-users-cog"></i> Users</button>
+                <button type="button" class="staff-tab hidden" id="tabBtnLogs" onclick="switchStaffView('logs')"><i class="fa fa-history"></i> Activity Logs</button>
+                <button type="button" class="staff-tab hidden" id="tabBtnSettings" onclick="switchStaffView('settings')"><i class="fa fa-sliders-h"></i> Settings</button>
+            </div>
+        </div>
     </header>
 
-    <div class="banner">
+    <div class="banner" id="mainBannerSection">
         <div id="bannerSlideshow" class="slideshow-container">
             <!-- Images will be injected here via JS -->
         </div>
@@ -80,13 +92,142 @@
     </div>
 
     <main>
-        <h2 id="categoryTitle" data-i18n="all_items">All Hot Items</h2>
-        <div class="admin-actions">
-            <button id="addBtn" class="admin-btn hidden" onclick="openAddModal()"><i class="fa fa-plus"></i> <span data-i18n="add_new">Add New Product</span></button>
-        </div>
-        <div id="productGrid" class="product-grid">
-            <!-- Products will load here -->
-        </div>
+        <!-- STAFF DASHBOARD SUMMARY PANEL (Shown when Staff clicks Dashboard tab) -->
+        <section id="staffDashboardSection" class="staff-panel hidden">
+            <div class="panel-header">
+                <h2><i class="fa fa-chart-pie"></i> Staff Workspace Dashboard</h2>
+                <span id="dashboardRoleSummary" class="role-pill"></span>
+            </div>
+            <div class="dashboard-cards">
+                <div class="dash-card">
+                    <span class="dash-label">Total Products</span>
+                    <strong id="dashTotalProducts">0</strong>
+                </div>
+                <div class="dash-card">
+                    <span class="dash-label">In Stock</span>
+                    <strong id="dashInStock" style="color:#2ed573;">0</strong>
+                </div>
+                <div class="dash-card">
+                    <span class="dash-label">Out of Stock</span>
+                    <strong id="dashOutStock" style="color:#ff4757;">0</strong>
+                </div>
+                <div class="dash-card" id="dashStaffCountCard">
+                    <span class="dash-label">Active Staff Accounts</span>
+                    <strong id="dashActiveStaff">-</strong>
+                </div>
+            </div>
+            <div class="permissions-summary-box">
+                <h3>Your Assigned Permissions</h3>
+                <div id="myPermissionsBadges" class="perm-badge-list"></div>
+            </div>
+        </section>
+
+        <!-- STAFF USER MANAGEMENT SECTION (Admin / Super Admin with users.manage) -->
+        <section id="staffUsersSection" class="staff-panel hidden">
+            <div class="panel-header">
+                <h2><i class="fa fa-users-cog"></i> Sales Team & User Management</h2>
+                <button type="button" class="add-staff-btn" onclick="openUserFormModal()"><i class="fa fa-user-plus"></i> Create Sales Team Account</button>
+            </div>
+            <div class="table-responsive">
+                <table class="staff-table">
+                    <thead>
+                        <tr>
+                            <th>User ID</th>
+                            <th>Username</th>
+                            <th>Display Name</th>
+                            <th>Contact</th>
+                            <th>Role</th>
+                            <th>Status</th>
+                            <th>Last Login</th>
+                            <th>Created / Updated</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="staffUsersTableBody">
+                        <tr><td colspan="9" style="text-align:center;">Loading users...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- ACTIVITY AUDIT LOG SECTION (Admin / Super Admin with logs.view) -->
+        <section id="staffLogsSection" class="staff-panel hidden">
+            <div class="panel-header">
+                <h2><i class="fa fa-history"></i> System Activity & Audit Logs</h2>
+                <button type="button" class="refresh-btn" onclick="fetchAuditLogs()"><i class="fa fa-sync-alt"></i> Refresh</button>
+            </div>
+            <div class="log-filters-bar">
+                <input type="text" id="logSearchUser" placeholder="Search by username..." oninput="renderAuditLogs()">
+                <input type="text" id="logSearchProduct" placeholder="Search by product / entity..." oninput="renderAuditLogs()">
+                <select id="logFilterAction" onchange="renderAuditLogs()">
+                    <option value="">All Actions</option>
+                    <option value="LOGIN">LOGIN</option>
+                    <option value="LOGOUT">LOGOUT</option>
+                    <option value="ADD_PRODUCT">ADD_PRODUCT</option>
+                    <option value="UPDATE_PRODUCT">UPDATE_PRODUCT</option>
+                    <option value="CHANGE_PRICE">CHANGE_PRICE</option>
+                    <option value="CHANGE_SPECS">CHANGE_SPECS</option>
+                    <option value="UPLOAD_IMAGE">UPLOAD_IMAGE</option>
+                    <option value="REPLACE_IMAGE">REPLACE_IMAGE</option>
+                    <option value="CHANGE_AVAILABILITY">CHANGE_AVAILABILITY</option>
+                    <option value="DELETE_PRODUCT">DELETE_PRODUCT</option>
+                    <option value="CREATE_USER">CREATE_USER</option>
+                    <option value="UPDATE_USER">UPDATE_USER</option>
+                    <option value="DISABLE_USER">DISABLE_USER</option>
+                    <option value="CHANGE_PASSWORD">CHANGE_PASSWORD</option>
+                    <option value="UPDATE_SETTINGS">UPDATE_SETTINGS</option>
+                </select>
+                <select id="logFilterUserSelect" onchange="renderAuditLogs()">
+                    <option value="">All Users</option>
+                </select>
+                <input type="date" id="logFilterDate" onchange="renderAuditLogs()" title="Filter by date">
+                <select id="logSortOrder" onchange="renderAuditLogs()">
+                    <option value="newest">Newest First</option>
+                    <option value="oldest">Oldest First</option>
+                </select>
+            </div>
+            <div class="table-responsive">
+                <table class="staff-table">
+                    <thead>
+                        <tr>
+                            <th>Log ID</th>
+                            <th>Date & Time</th>
+                            <th>User</th>
+                            <th>Action</th>
+                            <th>Product / Entity</th>
+                            <th>Description</th>
+                            <th>Result</th>
+                        </tr>
+                    </thead>
+                    <tbody id="auditLogsTableBody">
+                        <tr><td colspan="7" style="text-align:center;">Loading activity logs...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- STORE SETTINGS SECTION (Shown when Settings tab is clicked) -->
+        <section id="staffSettingsSection" class="staff-panel hidden">
+            <div class="panel-header">
+                <h2><i class="fa fa-sliders-h"></i> Storefront & Banner Settings</h2>
+            </div>
+            <div class="settings-quick-actions">
+                <button type="button" class="edit-btn" onclick="openBannerEdit()"><i class="fa fa-images"></i> Edit Banner Slideshow</button>
+                <button type="button" class="edit-btn" onclick="openAboutEdit()"><i class="fa fa-info-circle"></i> Edit About Us</button>
+                <button type="button" class="edit-btn" onclick="openContactEdit()"><i class="fa fa-address-book"></i> Edit Contact Us</button>
+            </div>
+        </section>
+
+        <!-- CUSTOMER & PRODUCT CATALOG SECTION (Preserved v7.4.1 layout) -->
+        <section id="catalogMainSection">
+            <h2 id="categoryTitle" data-i18n="all_items">All Hot Items</h2>
+            <div class="admin-actions">
+                <button id="addBtn" class="admin-btn hidden" onclick="openAddModal()"><i class="fa fa-plus"></i> <span data-i18n="add_new">Add New Product</span></button>
+            </div>
+            <div id="productGrid" class="product-grid">
+                <!-- Products will load here -->
+            </div>
+        </section>
     </main>
 
     <footer>
@@ -160,22 +301,29 @@
             <select id="addCategory"><option value="Snack">Snack</option><option value="Food">Food</option><option value="Medicine">Medicine</option><option value="Bowls">Bowls</option><option value="Toys">Toys</option><option value="Gear">Gear</option></select>
             <label>Product Name:</label>
             <input type="text" id="addName">
-            <label>Upload Image (JPG/PNG/WEBP/HEIC/GIF/BMP - Max 5MB):</label>
-            <input type="file" id="addImgFile" accept="image/*,.heic,.heif">
-            <div id="addImgLoading" class="hidden" style="color: #2ed573; font-size: 13px; font-weight: bold; text-align: center; margin-top: -5px;">Processing image...</div>
-            <label>OR Image Link (URL):</label>
-            <input type="text" id="addImg">
+            <div id="addImageGroup">
+                <label>Upload Image (JPG/PNG/WEBP/HEIC/GIF/BMP - Max 5MB):</label>
+                <input type="file" id="addImgFile" accept="image/*,.heic,.heif">
+                <div id="addImgLoading" class="hidden" style="color: #2ed573; font-size: 13px; font-weight: bold; text-align: center; margin-top: -5px;">Processing image...</div>
+                <label>OR Image Link (URL):</label>
+                <input type="text" id="addImg">
+            </div>
             <label>Price (Number only - MMK will auto-append):</label>
             <input type="number" id="addPrice" placeholder="e.g. 5000">
             <label>Expiry Date:</label>
             <input type="text" id="addExp" placeholder="YYYY-MM-DD or N/A">
+            <label>Availability:</label>
+            <select id="addAvailability">
+                <option value="true">In Stock (Available)</option>
+                <option value="false">Out of Stock (Unavailable)</option>
+            </select>
             <label>Specs:</label>
             <textarea id="addSpecs"></textarea>
             <button type="button" id="saveAddBtn" onclick="saveNewProduct()">Save Product</button>
         </div>
     </div>
 
-    <!-- Edit Product Modal -->
+    <!-- Edit Product Modal (Permission-gated fields) -->
     <div id="editModal" class="modal" onclick="handleOutsideModalClick(event, 'editModal')">
         <div class="modal-content">
             <div class="modal-top-bar end">
@@ -183,48 +331,143 @@
             </div>
             <h2>Edit Product</h2>
             <input type="hidden" id="editId">
-            <label>Product Name:</label>
-            <input type="text" id="editName">
-            <label>Upload Image (JPG/PNG/WEBP/HEIC/GIF/BMP - Max 5MB):</label>
-            <input type="file" id="editImgFile" accept="image/*,.heic,.heif">
-            <div id="editImgLoading" class="hidden" style="color: #2ed573; font-size: 13px; font-weight: bold; text-align: center; margin-top: -5px;">Processing image...</div>
-            <label>OR Image Link (URL):</label>
-            <input type="text" id="editImg">
-            <label>Price (Number only):</label>
-            <input type="number" id="editPrice">
-            <label>Expiry Date:</label>
-            <input type="text" id="editExp">
-            <label>Specs:</label>
-            <textarea id="editSpecs"></textarea>
+            <div id="editDetailsGroup">
+                <label>Product Name:</label>
+                <input type="text" id="editName">
+                <label>Expiry Date:</label>
+                <input type="text" id="editExp">
+            </div>
+            <div id="editImageGroup">
+                <label>Upload Image (JPG/PNG/WEBP/HEIC/GIF/BMP - Max 5MB):</label>
+                <input type="file" id="editImgFile" accept="image/*,.heic,.heif">
+                <div id="editImgLoading" class="hidden" style="color: #2ed573; font-size: 13px; font-weight: bold; text-align: center; margin-top: -5px;">Processing image...</div>
+                <label>OR Image Link (URL):</label>
+                <input type="text" id="editImg">
+            </div>
+            <div id="editPriceGroup">
+                <label>Price (Number only):</label>
+                <input type="number" id="editPrice">
+            </div>
+            <div id="editAvailabilityGroup">
+                <label>Availability:</label>
+                <select id="editAvailability">
+                    <option value="true">In Stock (Available)</option>
+                    <option value="false">Out of Stock (Unavailable)</option>
+                </select>
+            </div>
+            <div id="editSpecsGroup">
+                <label>Specs:</label>
+                <textarea id="editSpecs"></textarea>
+            </div>
             <button type="button" id="saveEditBtn" onclick="saveEdit()">Save Changes</button>
         </div>
     </div>
 
-    <!-- Login Modal -->
+    <!-- Staff / Admin Login Modal -->
     <div id="loginModal" class="modal" onclick="handleOutsideModalClick(event, 'loginModal')">
         <div class="modal-content">
             <div class="modal-top-bar end">
                 <button type="button" class="close-btn" onclick="closeModal('loginModal')" aria-label="Close">&times;</button>
             </div>
-            <h2 data-i18n="admin_login">Admin Login</h2>
-            <input type="text" id="username" placeholder="Username (admin)" autocomplete="username">
+            <h2 data-i18n="admin_login">Staff & Admin Login</h2>
+            <input type="text" id="username" placeholder="Username (e.g. admin or sales01)" autocomplete="username">
             <input type="password" id="password" placeholder="Password" autocomplete="current-password" onkeydown="if(event.key==='Enter') login()">
-            <button type="button" onclick="login()">Login</button>
+            <button type="button" id="loginSubmitBtn" onclick="login()">Login</button>
             <p id="loginError" class="error"></p>
         </div>
     </div>
 
-    <!-- Change Password Modal -->
+    <!-- Change Own Password Modal -->
     <div id="passModal" class="modal" onclick="handleOutsideModalClick(event, 'passModal')">
         <div class="modal-content">
             <div class="modal-top-bar end">
                 <button type="button" class="close-btn" onclick="closeModal('passModal')" aria-label="Close">&times;</button>
             </div>
-            <h2>Change Password</h2>
+            <h2>Change My Password</h2>
             <input type="password" id="oldPass" placeholder="Current Password">
-            <input type="password" id="newPass" placeholder="New Password">
+            <input type="password" id="newPass" placeholder="New Password (min 4 chars)">
             <button type="button" onclick="savePassword()">Update Password</button>
             <p id="passError" class="error"></p>
+        </div>
+    </div>
+
+    <!-- Create / Edit Sales Team User & Permissions Modal -->
+    <div id="userFormModal" class="modal" onclick="handleOutsideModalClick(event, 'userFormModal')">
+        <div class="modal-content user-modal-content">
+            <div class="modal-top-bar end">
+                <button type="button" class="close-btn" onclick="closeModal('userFormModal')" aria-label="Close">&times;</button>
+            </div>
+            <h2 id="userFormTitle">Create Sales Team Account</h2>
+            <input type="hidden" id="editUserId">
+            <div class="user-form-grid">
+                <div>
+                    <label>Username (Login ID):</label>
+                    <input type="text" id="formUsername" placeholder="e.g. sales01">
+                </div>
+                <div>
+                    <label>Display Name:</label>
+                    <input type="text" id="formDisplayName" placeholder="e.g. Sales Team A">
+                </div>
+                <div>
+                    <label>Email or Phone:</label>
+                    <input type="text" id="formContact" placeholder="e.g. +959... or email">
+                </div>
+                <div>
+                    <label>Role:</label>
+                    <select id="formRole">
+                        <option value="SALES_TEAM">Sales Team</option>
+                        <option value="ADMIN">Admin</option>
+                    </select>
+                </div>
+                <div>
+                    <label>Account Status:</label>
+                    <select id="formStatus">
+                        <option value="active">Active</option>
+                        <option value="disabled">Disabled</option>
+                    </select>
+                </div>
+                <div>
+                    <label id="formPasswordLabel">Password (Min 4 chars):</label>
+                    <input type="password" id="formPassword" placeholder="Enter password">
+                </div>
+            </div>
+
+            <div class="perm-matrix-box">
+                <div class="perm-matrix-header">
+                    <strong>Assigned Permissions</strong>
+                    <div>
+                        <button type="button" class="mini-btn" onclick="setAllPermissionCheckboxes(true)">Select All</button>
+                        <button type="button" class="mini-btn" onclick="setAllPermissionCheckboxes(false)">Clear All</button>
+                    </div>
+                </div>
+                <div class="perm-checkbox-grid" id="permCheckboxGrid">
+                    <label class="perm-item"><input type="checkbox" value="product.view" checked> View Products (<code>product.view</code>)</label>
+                    <label class="perm-item"><input type="checkbox" value="product.add"> Add Product (<code>product.add</code>)</label>
+                    <label class="perm-item"><input type="checkbox" value="product.edit"> Edit Details/Name/Exp (<code>product.edit</code>)</label>
+                    <label class="perm-item"><input type="checkbox" value="product.price_edit"> Update Price (<code>product.price_edit</code>)</label>
+                    <label class="perm-item"><input type="checkbox" value="product.specs_edit"> Update Specs (<code>product.specs_edit</code>)</label>
+                    <label class="perm-item"><input type="checkbox" value="product.image_edit"> Upload/Change Image (<code>product.image_edit</code>)</label>
+                    <label class="perm-item"><input type="checkbox" value="product.availability_edit"> Manage Availability (<code>product.availability_edit</code>)</label>
+                    <label class="perm-item"><input type="checkbox" value="product.delete"> Delete Product (<code>product.delete</code>)</label>
+                    <label class="perm-item"><input type="checkbox" value="logs.view"> View Activity Logs (<code>logs.view</code>)</label>
+                    <label class="perm-item"><input type="checkbox" value="settings.edit"> Edit Banner/Footer (<code>settings.edit</code>)</label>
+                    <label class="perm-item"><input type="checkbox" value="users.manage"> Manage Sales Users (<code>users.manage</code>)</label>
+                </div>
+            </div>
+
+            <p id="userFormError" class="error"></p>
+            <button type="button" id="saveUserFormBtn" onclick="saveStaffUser()">Save User Account</button>
+        </div>
+    </div>
+
+    <!-- Audit Log Detail Modal -->
+    <div id="logDetailModal" class="modal" onclick="handleOutsideModalClick(event, 'logDetailModal')">
+        <div class="modal-content log-detail-modal">
+            <div class="modal-top-bar end">
+                <button type="button" class="close-btn" onclick="closeModal('logDetailModal')" aria-label="Close">&times;</button>
+            </div>
+            <h2>Activity Log Details</h2>
+            <div id="logDetailBody" class="log-detail-body"></div>
         </div>
     </div>
 
