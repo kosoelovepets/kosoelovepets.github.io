@@ -7,6 +7,7 @@ h1, h2, h3, .banner-text, .cart-grand-total { font-family: 'Baloo 2', cursive; }
 .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background-color: #2ed573; color: white; padding: 12px 24px; border-radius: 8px; font-weight: 700; font-size: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); z-index: 1000; opacity: 1; transition: opacity 0.5s ease; }
 .toast.hidden { opacity: 0; pointer-events: none; }
 
+/* Responsive Header Layout (Laptop, Tablet & Mobile Aligned) */
 .header-top { display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; max-width: 1200px; margin: 0 auto; gap: 16px; }
 .logo-container h1 { font-size: 26px; margin: 0; white-space: nowrap; display: flex; align-items: center; gap: 6px; font-weight: 800; }
 .version-badge { font-size: 12px; background: #fecfef; color: #333; padding: 3px 8px; border-radius: 12px; font-weight: 700; font-family: 'Nunito', sans-serif; }
@@ -130,7 +131,7 @@ input:focus, textarea:focus, select:focus { border-color: #ff9a9e; }
 /* ==========================================
    V7.5 RBAC, USER MANAGEMENT & AUDIT LOG STYLES
    ========================================== */
-.staff-badge { background: #2f3542; color: #fff; padding: 6px 12px; border-radius: 18px; font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; gap: 5px; }
+.staff-badge { height: 38px; background: #2f3542; color: #fff; padding: 0 12px; border-radius: 20px; font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
 .staff-nav-bar { background: #2f3542; padding: 8px 15px; border-top: 1px solid #444; }
 .staff-nav-inner { max-width: 1200px; margin: 0 auto; display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
 .staff-tab { background: rgba(255,255,255,0.1); color: #f1f2f6; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; transition: background 0.2s; }
@@ -188,7 +189,7 @@ input:focus, textarea:focus, select:focus { border-color: #ff9a9e; }
 .last-updated-tag { font-size: 11px; color: #888; margin-top: 6px; font-style: italic; }
 .settings-quick-actions { display: flex; gap: 12px; flex-wrap: wrap; }
 
-/* Tablet & Mobile View */
+/* Tablet View (601px - 992px) */
 @media (max-width: 992px) {
     .product-grid { grid-template-columns: repeat(3, 1fr); }
     .dashboard-cards { grid-template-columns: repeat(2, 1fr); }
@@ -199,6 +200,8 @@ input:focus, textarea:focus, select:focus { border-color: #ff9a9e; }
     #searchInput, #searchInput:focus { flex: 1 1 200px; width: auto; }
     .header-buttons { flex-wrap: wrap; justify-content: flex-end; }
 }
+
+/* Mobile View (<= 600px) */
 @media (max-width: 600px) {
     .header-top { padding: 10px 12px; gap: 8px; }
     .logo-container h1 { font-size: 22px; justify-content: center; }
@@ -209,9 +212,28 @@ input:focus, textarea:focus, select:focus { border-color: #ff9a9e; }
     .header-buttons > .cart-counter,
     .header-buttons > .login-btn,
     .header-buttons > .admin-btn { flex: 1 1 auto; height: 36px; padding: 0 10px; font-size: 12px; justify-content: center; }
-    .staff-badge { width: 100%; justify-content: center; order: -1; padding: 5px 10px; font-size: 12px; }
+    .staff-badge { width: 100%; height: auto; justify-content: center; order: -1; padding: 5px 10px; font-size: 12px; }
     .main-menu > li { padding: 10px 12px; }
     .main-menu > li > a { font-size: 16px; }
+    
+    .banner { height: 200px; }
+    .banner-text { font-size: 24px; padding: 8px 15px; width: 95%; }
+    
+    .product-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    .product-card { padding: 12px; border-radius: 12px; }
+    .product-img, .product-img-broken { height: 130px; }
+    .product-info h3 { font-size: 15px; margin: 6px 0; }
+    .price { font-size: 17px; }
+    
+    .cart-header { font-size: 13px; grid-template-columns: 2.2fr 0.9fr 1.1fr 28px; }
+    .cart-item { font-size: 13px; grid-template-columns: 2.2fr 0.9fr 1.1fr 28px; padding: 10px 0; }
+    .cart-item-info img { width: 38px; height: 38px; }
+    .cart-item-info span { font-size: 13px; }
+    .cart-qty-controls { gap: 5px; }
+    .cart-qty-btn { width: 24px; height: 24px; font-size: 14px; }
+    .cart-item-total { font-size: 13px; }
+    .remove-item-btn { width: 26px; height: 26px; font-size: 14px; }
+    .cart-grand-total { font-size: 18px; }
 
     .user-form-grid, .perm-checkbox-grid, .log-filters-bar { grid-template-columns: 1fr; }
 }
