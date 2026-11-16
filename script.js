@@ -1,21 +1,30 @@
 // ==========================================
-// 1. SUPABASE CONFIGURATION (Backend Sync)
+// 1. SUPABASE CONFIGURATION (Backend Sync + Staff Token Header)
 // ==========================================
-const APP_VERSION = 'v7.4.1';
+const APP_VERSION = 'v7.5';
 const SUPABASE_URL = 'https://moggsrqzhygvavsdcanh.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1vZ2dzcnF6aHlndmF2c2RjYW5oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ0NzE0NzYsImV4cCI6MjExMDA0NzQ3Nn0.l8Et78xU1eo6f7UND-0ONHPPJfM_oJ-qEMyKUAZoPIU';
 
 let supabaseClient = null;
 let useLocalFallback = false;
+let staffSessionToken = localStorage.getItem('kosoepets_staff_token_v75') || '';
 
-try {
+function rebuildSupabaseClient() {
     if (SUPABASE_URL && SUPABASE_URL.startsWith('https://') && SUPABASE_ANON_KEY && !SUPABASE_ANON_KEY.includes('YOUR_LEGACY') && window.supabase) {
-        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const headers = staffSessionToken ? { 'x-staff-token': staffSessionToken } : {};
+        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+            global: { headers }
+        });
         document.getElementById('sysBanner').classList.add('hidden');
+        useLocalFallback = false;
     } else {
         useLocalFallback = true;
         document.getElementById('sysBanner').classList.remove('hidden');
     }
+}
+
+try {
+    rebuildSupabaseClient();
 } catch (err) {
     console.error("Supabase init error:", err);
     useLocalFallback = true;
@@ -31,7 +40,7 @@ const translations = {
     en: {
         home: "Home", cats: "Cats", dogs: "Dogs", accessories: "Accessories",
         snack: "Snack", food: "Food", medicine: "Medicine", bowls: "Bowls", toys: "Toys", gear: "Gear",
-        admin_login: "Admin Login", logout: "Logout", password: "Password",
+        admin_login: "Staff Login", logout: "Logout", password: "Password",
         all_items: "All Hot Items", add_new: "Add New Product",
         about_us: "About Us", contact_us: "Contact Us",
         cart_title: "Your Cart", product: "Product", qty: "Qty", total: "Total (MMK)",
@@ -44,7 +53,7 @@ const translations = {
     mm: {
         home: "ပင်မစာမျက်နှာ", cats: "ကြောင်များ", dogs: "ခွေးများ", accessories: "ဆက်စပ်ပစ္စည်းများ",
         snack: "သရေစာ", food: "အစားအစာ", medicine: "ဆေးဝါး", bowls: "ပန်းကန်များ", toys: "ကစားစရာများ", gear: "သုံးဆောင်များ",
-        admin_login: "စီမံခန့်ခွဲသူဝင်ရန်", logout: "ထွက်ရန်", password: "စကားဝှက်",
+        admin_login: "ဝန်ထမ်းဝင်ရန်", logout: "ထွက်ရန်", password: "စကားဝှက်",
         all_items: "လူကြိုက်များသော ပစ္စည်းများ", add_new: "ထုတ်ကုန်အသစ်ထည့်ရန်",
         about_us: "ကျွန်ုပ်တို့အကြောင်း", contact_us: "ဆက်သွယ်ရန်",
         cart_title: "သင့်စျေးခြင်းတောင်း", product: "ထုတ်ကုန်", qty: "အရေအတွက်", total: "စုစုပေါင်း (MMK)",
@@ -76,19 +85,46 @@ function switchLanguage() {
 }
 
 // ==========================================
-// 3. CENTRALIZED STATE & INIT
+// 3. CENTRALIZED STATE, RBAC & INIT
 // ==========================================
 let products = [];
 let currentProducts = [];
 let cart = JSON.parse(localStorage.getItem('kosoepets_cart_v741')) || [];
-let isAdmin = false;
-let currentAdminPass = 'admin'; // Will be fetched & synced from database
+
+// Role-Based Access Control State
+let currentStaffUser = null; // { id, username, display_name, contact, role, status }
+let currentPermissions = {}; // { 'product.add': true, ... }
+let staffUsersList = [];
+let auditLogsList = [];
+let activeStaffView = 'products';
+
+const ALL_PERMISSION_CODES = [
+    'product.view', 'product.add', 'product.edit', 'product.price_edit',
+    'product.specs_edit', 'product.image_edit', 'product.availability_edit',
+    'product.delete', 'logs.view', 'settings.edit', 'users.manage'
+];
+
+function hasPerm(code) {
+    if (!currentStaffUser) return false;
+    if (currentStaffUser.role === 'SUPER_ADMIN') return true;
+    return Boolean(currentPermissions && currentPermissions[code]);
+}
+
+function canEditAnyProductField() {
+    return (
+        hasPerm('product.edit') ||
+        hasPerm('product.price_edit') ||
+        hasPerm('product.specs_edit') ||
+        hasPerm('product.image_edit') ||
+        hasPerm('product.availability_edit')
+    );
+}
 
 const productGrid = document.getElementById('productGrid');
 const searchInput = document.getElementById('searchInput');
 const categoryTitle = document.getElementById('categoryTitle');
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     if (localStorage.getItem('kosoepets_about_v741')) document.getElementById('aboutTextEl').innerText = localStorage.getItem('kosoepets_about_v741');
     let savedContact = JSON.parse(localStorage.getItem('kosoepets_contact_v741'));
     if (savedContact) {
@@ -113,9 +149,28 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     updateCartCount();
+    await restoreStaffSession();
     fetchProducts();
-    fetchSettings(); // Initialize centralized banner sync
+    fetchSettings();
 });
+
+async function restoreStaffSession() {
+    if (!staffSessionToken || useLocalFallback || !supabaseClient) return;
+    try {
+        const { data, error } = await supabaseClient.rpc('rpc_validate_session');
+        if (!error && data && data.valid) {
+            currentStaffUser = data.user;
+            currentPermissions = data.permissions || {};
+            applyStaffUIState();
+        } else {
+            staffSessionToken = '';
+            localStorage.removeItem('kosoepets_staff_token_v75');
+            rebuildSupabaseClient();
+        }
+    } catch (e) {
+        console.warn("Session restore skipped:", e);
+    }
+}
 
 function toggleSubMenu(e, linkEl) {
     e.preventDefault();
@@ -130,8 +185,9 @@ function sortNewestFirst(list) {
     return list.sort((a, b) => (Number(b.created_at) || Number(b.id) || 0) - (Number(a.created_at) || Number(a.id) || 0));
 }
 
-function showToast() {
+function showToast(msg) {
     const toast = document.getElementById('toastNotification');
+    toast.innerText = msg || 'Successfully added to your cart!';
     toast.classList.remove('hidden');
     setTimeout(() => {
         toast.classList.add('hidden');
@@ -149,6 +205,7 @@ function openImageZoom(imgUrl) {
 let bannerImages = ['https://images.unsplash.com/photo-1541364983171-a8ba01e95cfc?auto=format&fit=crop&w=1200&q=80'];
 let bannerSlideIdx = 0;
 let bannerInterval = null;
+let settingsChannelSubscribed = false;
 
 async function fetchSettings() {
     if (useLocalFallback) {
@@ -156,24 +213,23 @@ async function fetchSettings() {
         let imgs = JSON.parse(localStorage.getItem('kosoepets_banner_imgs_v741'));
         if (txt) document.getElementById('bannerTextEl').innerText = txt;
         if (imgs && imgs.length > 0) bannerImages = imgs;
-        let savedPass = localStorage.getItem('kosoepets_pass_v741');
-        if (savedPass) currentAdminPass = savedPass;
         renderBannerSlideshow();
     } else {
         const { data, error } = await supabaseClient.from('store_settings').select('*').eq('id', 1).single();
         if (!error && data) {
             if (data.banner_title) document.getElementById('bannerTextEl').innerText = data.banner_title;
             if (data.banner_images && data.banner_images.length > 0) bannerImages = data.banner_images;
-            if (data.admin_password) currentAdminPass = data.admin_password;
             renderBannerSlideshow();
         }
 
-        // Subscribe to real-time changes
-        supabaseClient.channel('public:store_settings')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'store_settings' }, () => {
-                fetchSettings(); // Auto-refresh all connected devices
-            })
-            .subscribe();
+        if (!settingsChannelSubscribed) {
+            settingsChannelSubscribed = true;
+            supabaseClient.channel('public:store_settings')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'store_settings' }, () => {
+                    fetchSettings();
+                })
+                .subscribe();
+        }
     }
 }
 
@@ -201,10 +257,11 @@ function renderBannerSlideshow() {
     }
 }
 
-// Add Supabase Storage Bucket Name Constant
+// ==========================================
+// 3.6 SAFE IMAGE UPLOAD (MAGIC-BYTE CHECK + HEIC FALLBACK)
+// ==========================================
 const SUPABASE_BUCKET = 'product-images';
 
-// Helper to safely upload standard images/screenshots directly, and only convert genuine HEIC/HEIF files
 async function processAndUploadImage(file) {
     if (!supabaseClient) throw new Error("Supabase is not connected.");
     if (file.size > 5 * 1024 * 1024) throw new Error("File exceeds 5MB limit.");
@@ -213,7 +270,6 @@ async function processAndUploadImage(file) {
     const lowerName = (file.name || '').toLowerCase();
     const mime = (file.type || '').toLowerCase();
 
-    // Read first 16 bytes to check magic signature (PNG, JPEG, WEBP, GIF, BMP vs genuine HEIC)
     let headerBytes = new Uint8Array(0);
     let headerStr = '';
     try {
@@ -265,7 +321,6 @@ async function processAndUploadImage(file) {
         }
     }
 
-    // Determine clean file extension and MIME type from magic bytes or filename
     let fileExt = 'png';
     let contentType = processedFile.type || 'image/png';
 
@@ -350,6 +405,10 @@ document.getElementById('editBannerFiles').addEventListener('change', async func
 });
 
 function openBannerEdit() {
+    if (!hasPerm('settings.edit')) {
+        alert("Permission denied: You do not have permission to edit store settings.");
+        return;
+    }
     document.getElementById('editBannerText').value = document.getElementById('bannerTextEl').innerText;
     document.getElementById('editBannerFiles').value = '';
     document.getElementById('editBannerImgUrls').value = '';
@@ -358,6 +417,12 @@ function openBannerEdit() {
 }
 
 async function saveBanner() {
+    if (!hasPerm('settings.edit')) {
+        alert("Permission denied.");
+        return;
+    }
+    const oldTitle = document.getElementById('bannerTextEl').innerText;
+    const oldImgs = [...bannerImages];
     const txt = document.getElementById('editBannerText').value.trim();
     const urlsText = document.getElementById('editBannerImgUrls').value.trim();
     
@@ -386,38 +451,49 @@ async function saveBanner() {
             renderBannerSlideshow();
             closeModal('bannerModal');
         } catch (err) {
-            alert("Storage quota exceeded! The uploaded images are too large for local browser storage. Please upload fewer images or use Image Links (URLs) instead.");
+            alert("Storage quota exceeded!");
         }
     } else {
-        // Sync Banner Settings to Supabase DB
+        const finalTitle = txt || 'Welcome To Ko Soe Love Pets';
         const { error } = await supabaseClient.from('store_settings').upsert({
             id: 1,
-            banner_title: txt || 'Welcome To Ko Soe Love Pets',
+            banner_title: finalTitle,
             banner_images: newImgs
         });
         if (error) {
             alert("Error updating banner in database: " + error.message);
             return;
         }
-        await fetchSettings(); // immediately refresh locally
+        await writeAuditLog(
+            'UPDATE_SETTINGS',
+            'SETTINGS',
+            '1',
+            'Banner Slideshow',
+            `Updated banner (${newImgs.length} image(s), title: "${finalTitle}")`,
+            { banner_title: oldTitle, banner_images: oldImgs },
+            { banner_title: finalTitle, banner_images: newImgs }
+        );
+        await fetchSettings();
         closeModal('bannerModal');
     }
 }
 
-
 // ==========================================
 // 4. DATABASE SYNC & PRODUCT UPLOAD (Max 5MB)
 // ==========================================
+let productsChannelSubscribed = false;
+
 async function fetchProducts() {
     if (useLocalFallback) {
         let stored = localStorage.getItem('kosoepets_products_v741');
         products = stored ? JSON.parse(stored) : [
-            { id: 1, type: 'Cats', category: 'Food', name: 'ကြောင်စာ (Premium Dry Cat Food)', price: 25000, exp: '2028-05-01', img: 'https://images.unsplash.com/photo-1574635677940-d98c25dbff45?auto=format&fit=crop&w=400&q=80', specs: 'ထိုင်းနိုင်ငံထုတ် ကြောင်ကလေးတွေအရမ်းကြိုက်', created_at: 1731400001000 },
-            { id: 2, type: 'Dogs', category: 'Snack', name: 'Beef Chew Bones (အမဲရိုးသရေစာ)', price: 8500, exp: '2027-08-11', img: 'https://images.unsplash.com/photo-1589924691995-400dc9ecc119?auto=format&fit=crop&w=400&q=80', specs: 'သွားသန့်ရှင်းစေပြီး အကြာကြီးဝါးနိုင်သည်', created_at: 1731400002000 },
-            { id: 3, type: 'Accessories', category: 'Gear', name: 'Reflective Dog Harness (ခွေးလည်ပတ်ကြိုး)', price: 18000, exp: 'N/A', img: 'https://images.unsplash.com/photo-1584362917165-526a968579e8?auto=format&fit=crop&w=400&q=80', specs: 'ခိုင်ခံ့ပြီး ညဘက်အလင်းပြန်သည်', created_at: 1731400003000 }
+            { id: 1, type: 'Cats', category: 'Food', name: 'ကြောင်စာ (Premium Dry Cat Food)', price: 25000, exp: '2028-05-01', img: 'https://images.unsplash.com/photo-1574635677940-d98c25dbff45?auto=format&fit=crop&w=400&q=80', specs: 'ထိုင်းနိုင်ငံထုတ် ကြောင်ကလေးတွေအရမ်းကြိုက်', is_available: true, created_at: 1731400001000 },
+            { id: 2, type: 'Dogs', category: 'Snack', name: 'Beef Chew Bones (အမဲရိုးသရေစာ)', price: 8500, exp: '2027-08-11', img: 'https://images.unsplash.com/photo-1589924691995-400dc9ecc119?auto=format&fit=crop&w=400&q=80', specs: 'သွားသန့်ရှင်းစေပြီး အကြာကြီးဝါးနိုင်သည်', is_available: true, created_at: 1731400002000 },
+            { id: 3, type: 'Accessories', category: 'Gear', name: 'Reflective Dog Harness (ခွေးလည်ပတ်ကြိုး)', price: 18000, exp: 'N/A', img: 'https://images.unsplash.com/photo-1584362917165-526a968579e8?auto=format&fit=crop&w=400&q=80', specs: 'ခိုင်ခံ့ပြီး ညဘက်အလင်းပြန်သည်', is_available: true, created_at: 1731400003000 }
         ];
         products = sortNewestFirst(products);
         applyCurrentFilter();
+        updateDashboardMetrics();
     } else {
         const { data, error } = await supabaseClient.from('products').select('*').order('created_at', { ascending: false });
         if (error) {
@@ -427,16 +503,19 @@ async function fetchProducts() {
         }
         products = sortNewestFirst(data || []);
         applyCurrentFilter();
+        updateDashboardMetrics();
 
-        supabaseClient.channel('public:products')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => {
-                fetchProducts();
-            })
-            .subscribe();
+        if (!productsChannelSubscribed) {
+            productsChannelSubscribed = true;
+            supabaseClient.channel('public:products')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => {
+                    fetchProducts();
+                })
+                .subscribe();
+        }
     }
 }
 
-// State for pending uploaded images to prevent blocking the UI early
 let pendingAddImgUrl = '';
 let pendingEditImgUrl = '';
 
@@ -461,7 +540,6 @@ function setupProductImageUpload(inputId, targetUrlId, loadingId, btnId, urlStat
                      document.getElementById(targetUrlId).value = url;
                      urlStateSetter(url);
                  } else {
-                     // Local fallback Base64
                      const reader = new FileReader();
                      reader.onload = function (evt) { 
                          document.getElementById(targetUrlId).value = evt.target.result;
@@ -483,13 +561,16 @@ function setupProductImageUpload(inputId, targetUrlId, loadingId, btnId, urlStat
 setupProductImageUpload('addImgFile', 'addImg', 'addImgLoading', 'saveAddBtn', (url) => { pendingAddImgUrl = url; });
 setupProductImageUpload('editImgFile', 'editImg', 'editImgLoading', 'saveEditBtn', (url) => { pendingEditImgUrl = url; });
 
-
 // ==========================================
 // 5. CART, INDIVIDUAL REMOVE & PDF VOUCHER
 // ==========================================
 function addToCart(id) {
     const item = products.find(p => Number(p.id) === Number(id));
     if (item) {
+        if (item.is_available === false) {
+            alert(currentLang === 'mm' ? 'ဤပစ္စည်း လက်ရှိပြတ်လပ်နေပါသည်။' : 'Sorry, this product is currently out of stock.');
+            return;
+        }
         let existing = cart.find(c => Number(c.id) === Number(id));
         if (existing) {
             existing.qty += 1;
@@ -497,7 +578,7 @@ function addToCart(id) {
             cart.push({ ...item, qty: 1 });
         }
         processCartStateChange();
-        showToast();
+        showToast('Successfully added to your cart!');
     }
 }
 
@@ -525,7 +606,6 @@ function processCartStateChange() {
     }
 }
 
-// MULTI-TAB SYNC: Instantly updates UI if cart changes in another open tab
 window.addEventListener('storage', (e) => {
     if (e.key === 'kosoepets_cart_v741') {
         cart = JSON.parse(e.newValue) || [];
@@ -540,8 +620,6 @@ function updateCartCount() {
     const count = cart.reduce((sum, item) => sum + item.qty, 0);
     const counterBadge = document.getElementById('cartCount');
     counterBadge.innerText = count;
-    
-    // Quick scale animation
     counterBadge.parentElement.style.transform = 'scale(1.2)';
     setTimeout(() => {
         counterBadge.parentElement.style.transform = 'scale(1)';
@@ -647,11 +725,7 @@ function downloadCartPDF() {
                 .totals div { display: flex; justify-content: space-between; padding: 8px 0; }
                 .totals .grand { font-size: 22px; font-weight: 800; color: #ff4757; border-top: 3px solid #fecfef; padding-top: 15px; margin-top: 5px; }
                 .footer { text-align: center; margin-top: 40px; font-weight: 800; color: #666; font-size: 18px; font-family: 'Baloo 2', cursive; letter-spacing: 0.5px; }
-                @media print {
-                    body { padding: 0; }
-                    .no-print { display: none; }
-                    .voucher-box { border: none; padding: 0; }
-                }
+                @media print { body { padding: 0; } .no-print { display: none; } .voucher-box { border: none; padding: 0; } }
             </style>
         </head>
         <body>
@@ -677,9 +751,7 @@ function downloadCartPDF() {
                             <th style="text-align:right;">${t.total}</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        ${rowsHtml}
-                    </tbody>
+                    <tbody>${rowsHtml}</tbody>
                 </table>
                 <div class="totals">
                     <div><span>${t.discount}</span><span>0 MMK</span></div>
@@ -687,11 +759,7 @@ function downloadCartPDF() {
                 </div>
                 <div class="footer">${t.thank_you}</div>
             </div>
-            <script>
-                window.onload = function() {
-                    setTimeout(function() { window.print(); }, 500);
-                };
-            </script>
+            <script>window.onload = function() { setTimeout(function() { window.print(); }, 500); };<\/script>
         </body>
         </html>
     `);
@@ -703,20 +771,14 @@ async function redirectToViber() {
 
     const t = translations[currentLang];
     let grandTotal = 0;
-    let orderSummary = `Ko Soe Love Pets - Order\n`;
-    orderSummary += `------------------------\n`;
+    let orderSummary = `Ko Soe Love Pets - Order\n------------------------\n`;
     cart.forEach((item, idx) => {
         let rowTotal = Number(item.price) * item.qty;
         grandTotal += rowTotal;
-        orderSummary += `${idx + 1}. ${item.name}\n`;
-        orderSummary += `   ${t.qty}: ${item.qty} x ${Number(item.price).toLocaleString()} MMK = ${rowTotal.toLocaleString()} MMK\n`;
+        orderSummary += `${idx + 1}. ${item.name}\n   ${t.qty}: ${item.qty} x ${Number(item.price).toLocaleString()} MMK = ${rowTotal.toLocaleString()} MMK\n`;
     });
-    orderSummary += `------------------------\n`;
-    orderSummary += `${t.discount} 0 MMK\n`;
-    orderSummary += `${t.grand_total} ${grandTotal.toLocaleString()} MMK\n\n`;
-    orderSummary += `${t.thank_you}`;
+    orderSummary += `------------------------\n${t.discount} 0 MMK\n${t.grand_total} ${grandTotal.toLocaleString()} MMK\n\n${t.thank_you}`;
 
-    // Copy order summary to clipboard so customer can paste directly into Viber chat
     try {
         if (navigator.clipboard && navigator.clipboard.writeText) {
             await navigator.clipboard.writeText(orderSummary);
@@ -735,7 +797,6 @@ async function redirectToViber() {
         console.warn("Clipboard copy failed:", err);
     }
 
-    // Clean Viber deep link without broken parameters
     window.location.href = "viber://chat?number=%2B959262597117";
 }
 
@@ -779,29 +840,50 @@ function renderProducts(items) {
         productGrid.innerHTML = `<p style="grid-column: 1/-1; text-align: center; color: #666; font-weight:700; padding: 30px;">${msg}</p>`;
         return;
     }
+
+    const canEdit = canEditAnyProductField();
+    const canDelete = hasPerm('product.delete');
+
     items.forEach(item => {
         const card = document.createElement('div');
         card.className = 'product-card';
-        let adminHtml = isAdmin ? `
-            <div class="card-admin-actions">
-                <button type="button" class="edit-btn" onclick="openEdit(${item.id})"><i class="fa fa-edit"></i> Edit</button>
-                <button type="button" class="delete-btn" onclick="deleteProduct(${item.id})"><i class="fa fa-trash"></i> Del</button>
-            </div>` : '';
 
-        // Added error handler to hide broken images entirely from the card
-        let imgHtml = item.img ? `<img src="${item.img}" alt="${item.name}" class="product-img" onclick="openImageZoom('${item.img}')" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+        const isAvailable = item.is_available !== false;
+        const stockBadgeHtml = !isAvailable ? `<span class="stock-badge out">Out of Stock</span>` : '';
+
+        let adminButtons = [];
+        if (canEdit) {
+            adminButtons.push(`<button type="button" class="edit-btn" onclick="openEdit(${item.id})"><i class="fa fa-edit"></i> Edit</button>`);
+        }
+        if (canDelete) {
+            adminButtons.push(`<button type="button" class="delete-btn" onclick="deleteProduct(${item.id})"><i class="fa fa-trash"></i> Del</button>`);
+        }
+        const adminHtml = adminButtons.length > 0 ? `<div class="card-admin-actions">${adminButtons.join('')}</div>` : '';
+
+        // Staff-only "Last updated by" indicator
+        let updatedMetaHtml = '';
+        if (currentStaffUser && item.updated_by) {
+            const dt = item.updated_at ? new Date(item.updated_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : '';
+            updatedMetaHtml = `<p class="last-updated-tag">Last updated by: <strong>${escapeHtml(item.updated_by)}</strong>${dt ? ` (${dt})` : ''}</p>`;
+        }
+
+        let imgHtml = item.img ? `<img src="${item.img}" alt="${escapeHtml(item.name)}" class="product-img" onclick="openImageZoom('${item.img}')" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
             <div class="product-img-broken hidden" style="display:none;"><i class="fa fa-image"></i></div>` 
             : `<div class="product-img-broken"><i class="fa fa-image"></i></div>`;
 
         card.innerHTML = `
+            ${stockBadgeHtml}
             ${imgHtml}
             <div class="product-info">
-                <h3>${item.name}</h3>
+                <h3>${escapeHtml(item.name)}</h3>
                 <p class="price">${Number(item.price).toLocaleString()} MMK</p>
-                <p class="product-meta"><strong>Exp:</strong> ${item.exp}</p>
-                <p class="product-meta">${item.specs}</p>
-                <button type="button" class="buy-btn" onclick="addToCart(${item.id})">🛒 Add to Cart</button>
+                <p class="product-meta"><strong>Exp:</strong> ${escapeHtml(item.exp)}</p>
+                <p class="product-meta">${escapeHtml(item.specs)}</p>
+                <button type="button" class="buy-btn" onclick="addToCart(${item.id})" ${!isAvailable ? 'disabled' : ''}>
+                    ${isAvailable ? '🛒 Add to Cart' : 'Out of Stock'}
+                </button>
                 ${adminHtml}
+                ${updatedMetaHtml}
             </div>
         `;
         productGrid.appendChild(card);
@@ -813,6 +895,7 @@ function goHome() {
     activeCategoryFilter = null;
     searchInput.value = '';
     categoryTitle.innerText = translations[currentLang].all_items;
+    if (currentStaffUser) switchStaffView('products');
     applyCurrentFilter();
 }
 
@@ -821,11 +904,12 @@ function filterProducts(type, category) {
     activeCategoryFilter = { type, category };
     searchInput.value = '';
     categoryTitle.innerText = `${type} - ${translations[currentLang][category.toLowerCase()] || category}`;
+    if (currentStaffUser) switchStaffView('products');
     applyCurrentFilter();
 }
 
 // ==========================================
-// 7. MODALS & ADMIN AUTHENTICATION
+// 7. MODALS, MULTI-ROLE LOGIN & RBAC UI
 // ==========================================
 function closeModal(id) {
     const el = document.getElementById(id);
@@ -846,33 +930,158 @@ function openLoginModal() {
     setTimeout(() => document.getElementById('username').focus(), 100);
 }
 
-function login() {
+async function login() {
     const user = document.getElementById('username').value.trim();
     const pass = document.getElementById('password').value.trim();
-    if (user === 'admin' && pass === currentAdminPass) {
-        isAdmin = true;
+    const errEl = document.getElementById('loginError');
+    const btn = document.getElementById('loginSubmitBtn');
+
+    if (!user || !pass) {
+        errEl.innerText = 'Please enter both username and password.';
+        return;
+    }
+
+    if (useLocalFallback || !supabaseClient) {
+        errEl.innerText = 'Supabase connection required for Staff & Admin authentication.';
+        return;
+    }
+
+    btn.disabled = true;
+    errEl.innerText = '';
+
+    try {
+        const { data, error } = await supabaseClient.rpc('rpc_staff_login', {
+            p_username: user,
+            p_password: pass,
+            p_user_agent: navigator.userAgent
+        });
+
+        if (error) {
+            errEl.innerText = 'Login error: ' + error.message;
+            return;
+        }
+
+        if (!data || !data.success) {
+            errEl.innerText = (data && data.error) ? data.error : 'Invalid username or password';
+            return;
+        }
+
+        staffSessionToken = data.token;
+        localStorage.setItem('kosoepets_staff_token_v75', staffSessionToken);
+        currentStaffUser = data.user;
+        currentPermissions = data.permissions || {};
+
+        // Rebuild Supabase client so all subsequent requests include x-staff-token header for RLS
+        rebuildSupabaseClient();
+
         closeModal('loginModal');
-        document.querySelectorAll('.admin-btn').forEach(btn => btn.classList.remove('hidden'));
-        document.getElementById('editBannerBtn').classList.remove('hidden');
-        document.getElementById('editAboutBtn').classList.remove('hidden');
-        document.getElementById('editContactBtn').classList.remove('hidden');
-        document.getElementById('loginBtn').classList.add('hidden');
-        document.getElementById('logoutBtn').classList.remove('hidden');
-        renderProducts(currentProducts);
-    } else {
-        document.getElementById('loginError').innerText = 'Invalid username or password';
+        applyStaffUIState();
+        showToast(`Welcome, ${currentStaffUser.display_name}!`);
+    } catch (e) {
+        errEl.innerText = 'Unexpected login error: ' + e.message;
+    } finally {
+        btn.disabled = false;
     }
 }
 
-function logout() {
-    isAdmin = false;
-    document.querySelectorAll('.admin-btn').forEach(btn => btn.classList.add('hidden'));
-    document.getElementById('editBannerBtn').classList.add('hidden');
-    document.getElementById('editAboutBtn').classList.add('hidden');
-    document.getElementById('editContactBtn').classList.add('hidden');
-    document.getElementById('loginBtn').classList.remove('hidden');
-    document.getElementById('logoutBtn').classList.add('hidden');
+async function logout() {
+    if (!useLocalFallback && supabaseClient && staffSessionToken) {
+        try {
+            await supabaseClient.rpc('rpc_staff_logout', { p_user_agent: navigator.userAgent });
+        } catch (_) {}
+    }
+
+    staffSessionToken = '';
+    localStorage.removeItem('kosoepets_staff_token_v75');
+    currentStaffUser = null;
+    currentPermissions = {};
+    rebuildSupabaseClient();
+    applyStaffUIState();
+}
+
+function applyStaffUIState() {
+    const loggedIn = Boolean(currentStaffUser);
+
+    document.getElementById('loginBtn').classList.toggle('hidden', loggedIn);
+    document.getElementById('logoutBtn').classList.toggle('hidden', !loggedIn);
+    document.getElementById('changePassBtn').classList.toggle('hidden', !loggedIn);
+    document.getElementById('staffNavBar').classList.toggle('hidden', !loggedIn);
+
+    const badge = document.getElementById('staffBadge');
+    if (loggedIn) {
+        badge.classList.remove('hidden');
+        badge.innerHTML = `<i class="fa fa-user-shield"></i> ${escapeHtml(currentStaffUser.display_name)} (${currentStaffUser.role.replace('_', ' ')})`;
+    } else {
+        badge.classList.add('hidden');
+        badge.innerHTML = '';
+    }
+
+    // Permission-gated UI controls
+    document.getElementById('addBtn').classList.toggle('hidden', !hasPerm('product.add'));
+    document.getElementById('editBannerBtn').classList.toggle('hidden', !hasPerm('settings.edit'));
+    document.getElementById('editAboutBtn').classList.toggle('hidden', !hasPerm('settings.edit'));
+    document.getElementById('editContactBtn').classList.toggle('hidden', !hasPerm('settings.edit'));
+
+    // Staff Navigation Tabs
+    document.getElementById('tabBtnUsers').classList.toggle('hidden', !hasPerm('users.manage'));
+    document.getElementById('tabBtnLogs').classList.toggle('hidden', !hasPerm('logs.view'));
+    document.getElementById('tabBtnSettings').classList.toggle('hidden', !hasPerm('settings.edit'));
+
+    if (!loggedIn) {
+        switchStaffView('products');
+    } else {
+        updateDashboardMetrics();
+    }
+
     renderProducts(currentProducts);
+}
+
+function switchStaffView(viewName) {
+    activeStaffView = viewName;
+
+    document.querySelectorAll('.staff-tab').forEach(btn => btn.classList.remove('active'));
+    const tabMap = {
+        dashboard: 'tabBtnDashboard',
+        products: 'tabBtnProducts',
+        users: 'tabBtnUsers',
+        logs: 'tabBtnLogs',
+        settings: 'tabBtnSettings'
+    };
+    if (tabMap[viewName] && document.getElementById(tabMap[viewName])) {
+        document.getElementById(tabMap[viewName]).classList.add('active');
+    }
+
+    document.getElementById('staffDashboardSection').classList.toggle('hidden', viewName !== 'dashboard');
+    document.getElementById('staffUsersSection').classList.toggle('hidden', viewName !== 'users');
+    document.getElementById('staffLogsSection').classList.toggle('hidden', viewName !== 'logs');
+    document.getElementById('staffSettingsSection').classList.toggle('hidden', viewName !== 'settings');
+
+    // Keep banner & product catalog visible on Products view (and always visible to customers)
+    const showCatalog = !currentStaffUser || viewName === 'products';
+    document.getElementById('catalogMainSection').classList.toggle('hidden', !showCatalog);
+    document.getElementById('mainBannerSection').classList.toggle('hidden', !showCatalog);
+
+    if (viewName === 'dashboard') updateDashboardMetrics();
+    if (viewName === 'users' && hasPerm('users.manage')) fetchStaffUsers();
+    if (viewName === 'logs' && hasPerm('logs.view')) fetchAuditLogs();
+}
+
+function updateDashboardMetrics() {
+    if (!currentStaffUser) return;
+    document.getElementById('dashTotalProducts').innerText = products.length;
+    const inStock = products.filter(p => p.is_available !== false).length;
+    document.getElementById('dashInStock').innerText = inStock;
+    document.getElementById('dashOutStock').innerText = products.length - inStock;
+
+    const rolePill = document.getElementById('dashboardRoleSummary');
+    rolePill.className = `role-pill role-${currentStaffUser.role}`;
+    rolePill.innerText = currentStaffUser.role.replace('_', ' ');
+
+    const badgesEl = document.getElementById('myPermissionsBadges');
+    badgesEl.innerHTML = ALL_PERMISSION_CODES.map(code => {
+        const ok = hasPerm(code);
+        return `<span class="perm-pill ${ok ? '' : 'denied'}">${ok ? '✓' : '✕'} ${code}</span>`;
+    }).join('');
 }
 
 function openChangePass() {
@@ -885,71 +1094,102 @@ function openChangePass() {
 async function savePassword() {
     const oldP = document.getElementById('oldPass').value.trim();
     const newP = document.getElementById('newPass').value.trim();
-    if (oldP !== currentAdminPass) {
-        document.getElementById('passError').innerText = 'Current password incorrect!';
+    const errEl = document.getElementById('passError');
+
+    if (!oldP || !newP) {
+        errEl.innerText = 'Both current and new password are required.';
         return;
     }
-    if (!newP) {
-        document.getElementById('passError').innerText = 'New password cannot be empty!';
+
+    const { data, error } = await supabaseClient.rpc('rpc_change_own_password', {
+        p_old_password: oldP,
+        p_new_password: newP,
+        p_user_agent: navigator.userAgent
+    });
+
+    if (error) {
+        errEl.innerText = 'Database error: ' + error.message;
+        return;
+    }
+    if (!data || !data.success) {
+        errEl.innerText = (data && data.error) ? data.error : 'Password update failed.';
         return;
     }
 
-    if (useLocalFallback) {
-        currentAdminPass = newP;
-        localStorage.setItem('kosoepets_pass_v741', newP);
-        closeModal('passModal');
-        alert('Password updated successfully!');
-    } else {
-        const { error } = await supabaseClient
-            .from('store_settings')
-            .update({ admin_password: newP })
-            .eq('id', 1);
-
-        if (error) {
-            document.getElementById('passError').innerText = 'Database error: ' + error.message;
-            return;
-        }
-
-        currentAdminPass = newP;
-        closeModal('passModal');
-        alert('Password updated successfully on all devices!');
-    }
+    closeModal('passModal');
+    alert('Your password has been securely updated!');
 }
+
+// ==========================================
+// 8. PRODUCT CRUD WITH GRANULAR PERMISSIONS & DIFF AUDIT LOGGING
+// ==========================================
 function openAddModal() {
+    if (!hasPerm('product.add')) {
+        alert("Permission denied: You do not have 'product.add' permission.");
+        return;
+    }
     document.getElementById('addName').value = '';
     document.getElementById('addImg').value = '';
     document.getElementById('addImgFile').value = '';
     pendingAddImgUrl = '';
     document.getElementById('addPrice').value = '';
     document.getElementById('addExp').value = '';
+    document.getElementById('addAvailability').value = 'true';
     document.getElementById('addSpecs').value = '';
+
+    // Hide image upload controls if user lacks product.image_edit
+    document.getElementById('addImageGroup').classList.toggle('hidden', !hasPerm('product.image_edit'));
+
     document.getElementById('addModal').style.display = 'block';
 }
 
 function openEdit(id) {
+    if (!canEditAnyProductField()) {
+        alert("Permission denied: You do not have permission to edit products.");
+        return;
+    }
     const item = products.find(p => Number(p.id) === Number(id));
     if (!item) return;
+
     document.getElementById('editId').value = item.id;
     document.getElementById('editName').value = item.name;
     document.getElementById('editImg').value = item.img;
     pendingEditImgUrl = '';
     document.getElementById('editPrice').value = item.price;
     document.getElementById('editExp').value = item.exp;
+    document.getElementById('editAvailability').value = (item.is_available === false) ? 'false' : 'true';
     document.getElementById('editSpecs').value = item.specs;
     document.getElementById('editImgFile').value = '';
+
+    // Show/hide individual edit sections based on assigned permissions
+    document.getElementById('editDetailsGroup').classList.toggle('hidden', !hasPerm('product.edit'));
+    document.getElementById('editImageGroup').classList.toggle('hidden', !hasPerm('product.image_edit'));
+    document.getElementById('editPriceGroup').classList.toggle('hidden', !hasPerm('product.price_edit'));
+    document.getElementById('editAvailabilityGroup').classList.toggle('hidden', !hasPerm('product.availability_edit'));
+    document.getElementById('editSpecsGroup').classList.toggle('hidden', !hasPerm('product.specs_edit'));
+
     document.getElementById('editModal').style.display = 'block';
 }
 
 async function saveNewProduct() {
-    const finalImg = document.getElementById('addImg').value.trim() || pendingAddImgUrl || 'https://via.placeholder.com/400x300?text=No+Image';
+    if (!hasPerm('product.add')) {
+        alert("Permission denied: product.add required.");
+        return;
+    }
+
+    const uploadedOrLinkedImg = hasPerm('product.image_edit')
+        ? (document.getElementById('addImg').value.trim() || pendingAddImgUrl || 'https://via.placeholder.com/400x300?text=No+Image')
+        : 'https://via.placeholder.com/400x300?text=No+Image';
+
     const newProd = {
         type: document.getElementById('addType').value,
         category: document.getElementById('addCategory').value,
         name: document.getElementById('addName').value.trim() || 'New Product',
         price: parseInt(document.getElementById('addPrice').value) || 0,
         exp: document.getElementById('addExp').value.trim() || 'N/A',
-        img: finalImg,
+        img: uploadedOrLinkedImg,
         specs: document.getElementById('addSpecs').value.trim() || '',
+        is_available: document.getElementById('addAvailability').value === 'true',
         created_at: Date.now()
     };
 
@@ -959,10 +1199,30 @@ async function saveNewProduct() {
         localStorage.setItem('kosoepets_products_v741', JSON.stringify(products));
         fetchProducts();
     } else {
-        const { error } = await supabaseClient.from('products').insert([newProd]);
+        const { data: inserted, error } = await supabaseClient.from('products').insert([newProd]).select().single();
         if (error) {
-            alert("Error saving to Supabase: " + error.message);
+            alert("Database security blocked action: " + error.message);
             return;
+        }
+        await writeAuditLog(
+            'ADD_PRODUCT',
+            'PRODUCT',
+            inserted ? String(inserted.id) : '',
+            newProd.name,
+            `Added product "${newProd.name}" (${newProd.type}/${newProd.category}) at ${Number(newProd.price).toLocaleString()} MMK`,
+            null,
+            newProd
+        );
+        if (pendingAddImgUrl || document.getElementById('addImg').value.trim()) {
+            await writeAuditLog(
+                'UPLOAD_IMAGE',
+                'PRODUCT',
+                inserted ? String(inserted.id) : '',
+                newProd.name,
+                `Uploaded initial image for "${newProd.name}"`,
+                null,
+                { img: newProd.img }
+            );
         }
         await fetchProducts();
     }
@@ -971,14 +1231,76 @@ async function saveNewProduct() {
 
 async function saveEdit() {
     const id = Number(document.getElementById('editId').value);
-    const finalImg = document.getElementById('editImg').value.trim() || pendingEditImgUrl;
-    const updates = {
-        name: document.getElementById('editName').value.trim(),
-        img: finalImg,
-        price: parseInt(document.getElementById('editPrice').value) || 0,
-        exp: document.getElementById('editExp').value.trim(),
-        specs: document.getElementById('editSpecs').value.trim()
-    };
+    const oldItem = products.find(p => Number(p.id) === id);
+    if (!oldItem) return;
+
+    const updates = {};
+    const diffs = [];
+    const oldSnap = {};
+    const newSnap = {};
+
+    if (hasPerm('product.edit')) {
+        const newName = document.getElementById('editName').value.trim();
+        const newExp = document.getElementById('editExp').value.trim();
+        if (newName && newName !== oldItem.name) {
+            updates.name = newName;
+            oldSnap.name = oldItem.name;
+            newSnap.name = newName;
+            diffs.push(`Name: "${oldItem.name}" → "${newName}"`);
+        }
+        if (newExp !== oldItem.exp) {
+            updates.exp = newExp;
+            oldSnap.exp = oldItem.exp;
+            newSnap.exp = newExp;
+            diffs.push(`Exp: ${oldItem.exp} → ${newExp}`);
+        }
+    }
+
+    if (hasPerm('product.price_edit')) {
+        const newPrice = parseInt(document.getElementById('editPrice').value) || 0;
+        if (newPrice !== Number(oldItem.price)) {
+            updates.price = newPrice;
+            oldSnap.price = Number(oldItem.price);
+            newSnap.price = newPrice;
+            diffs.push(`Price: ${Number(oldItem.price).toLocaleString()} → ${newPrice.toLocaleString()} MMK`);
+        }
+    }
+
+    if (hasPerm('product.specs_edit')) {
+        const newSpecs = document.getElementById('editSpecs').value.trim();
+        if (newSpecs !== (oldItem.specs || '')) {
+            updates.specs = newSpecs;
+            oldSnap.specs = oldItem.specs;
+            newSnap.specs = newSpecs;
+            diffs.push(`Specs updated`);
+        }
+    }
+
+    if (hasPerm('product.image_edit')) {
+        const newImg = document.getElementById('editImg').value.trim() || pendingEditImgUrl;
+        if (newImg && newImg !== oldItem.img) {
+            updates.img = newImg;
+            oldSnap.img = oldItem.img;
+            newSnap.img = newImg;
+            diffs.push(`Product image replaced`);
+        }
+    }
+
+    if (hasPerm('product.availability_edit')) {
+        const newAvail = document.getElementById('editAvailability').value === 'true';
+        const oldAvail = oldItem.is_available !== false;
+        if (newAvail !== oldAvail) {
+            updates.is_available = newAvail;
+            oldSnap.is_available = oldAvail;
+            newSnap.is_available = newAvail;
+            diffs.push(`Availability: ${oldAvail ? 'In Stock' : 'Out of Stock'} → ${newAvail ? 'In Stock' : 'Out of Stock'}`);
+        }
+    }
+
+    if (Object.keys(updates).length === 0) {
+        closeModal('editModal');
+        return;
+    }
 
     if (useLocalFallback) {
         let index = products.findIndex(p => Number(p.id) === id);
@@ -990,16 +1312,42 @@ async function saveEdit() {
     } else {
         const { error } = await supabaseClient.from('products').update(updates).eq('id', id);
         if (error) {
-            alert("Error updating Supabase: " + error.message);
+            alert("Database security blocked update: " + error.message);
             return;
         }
+
+        // Determine primary granular action code
+        let primaryAction = 'UPDATE_PRODUCT';
+        if (Object.keys(updates).length === 1) {
+            if ('price' in updates) primaryAction = 'CHANGE_PRICE';
+            else if ('specs' in updates) primaryAction = 'CHANGE_SPECS';
+            else if ('img' in updates) primaryAction = 'REPLACE_IMAGE';
+            else if ('is_available' in updates) primaryAction = 'CHANGE_AVAILABILITY';
+        }
+
+        const targetName = updates.name || oldItem.name;
+        await writeAuditLog(
+            primaryAction,
+            'PRODUCT',
+            String(id),
+            targetName,
+            `Updated "${targetName}": ${diffs.join(' | ')}`,
+            oldSnap,
+            newSnap
+        );
+
         await fetchProducts();
     }
     closeModal('editModal');
 }
 
 async function deleteProduct(id) {
-    if (confirm('Are you sure you want to delete this product?')) {
+    if (!hasPerm('product.delete')) {
+        alert("Permission denied: You do not have 'product.delete' permission.");
+        return;
+    }
+    const targetItem = products.find(p => Number(p.id) === Number(id));
+    if (confirm(`Are you sure you want to delete "${targetItem ? targetItem.name : id}"?`)) {
         if (useLocalFallback) {
             products = products.filter(p => Number(p.id) !== Number(id));
             localStorage.setItem('kosoepets_products_v741', JSON.stringify(products));
@@ -1007,33 +1355,394 @@ async function deleteProduct(id) {
         } else {
             const { error } = await supabaseClient.from('products').delete().eq('id', id);
             if (error) {
-                alert("Error deleting from Supabase: " + error.message);
+                alert("Database security blocked deletion: " + error.message);
                 return;
             }
+            await writeAuditLog(
+                'DELETE_PRODUCT',
+                'PRODUCT',
+                String(id),
+                targetItem ? targetItem.name : String(id),
+                `Deleted product "${targetItem ? targetItem.name : id}" (${targetItem ? Number(targetItem.price).toLocaleString() + ' MMK' : ''})`,
+                targetItem || null,
+                null
+            );
             await fetchProducts();
         }
     }
 }
 
-// About & Contact Editors
+// ==========================================
+// 9. USER MANAGEMENT (SALES TEAM ACCOUNTS & PERMISSIONS)
+// ==========================================
+async function fetchStaffUsers() {
+    if (!hasPerm('users.manage') || useLocalFallback || !supabaseClient) return;
+    const tbody = document.getElementById('staffUsersTableBody');
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;">Loading staff accounts...</td></tr>';
+
+    const { data, error } = await supabaseClient.rpc('rpc_list_staff_users');
+    if (error) {
+        tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;color:#ff4757;">Error: ${escapeHtml(error.message)}</td></tr>`;
+        return;
+    }
+
+    staffUsersList = Array.isArray(data) ? data : [];
+    const activeCount = staffUsersList.filter(u => u.status === 'active').length;
+    document.getElementById('dashActiveStaff').innerText = activeCount;
+
+    if (staffUsersList.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;">No staff accounts found.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = staffUsersList.map(u => {
+        const isSuper = u.role === 'SUPER_ADMIN';
+        const isSelf = currentStaffUser && u.id === currentStaffUser.id;
+        const shortId = String(u.id).slice(0, 8);
+        const lastLogin = u.last_login_at ? new Date(u.last_login_at).toLocaleString() : 'Never';
+        const createdStr = u.created_at ? new Date(u.created_at).toLocaleDateString() : '-';
+        const updatedStr = u.updated_at ? new Date(u.updated_at).toLocaleDateString() : '-';
+
+        const editButton = (!isSuper && !isSelf)
+            ? `<button type="button" class="edit-btn" onclick="openUserFormModal('${u.id}')"><i class="fa fa-edit"></i> Edit / Perms</button>`
+            : `<span style="color:#888;font-size:12px;">Protected</span>`;
+
+        const logsButton = hasPerm('logs.view')
+            ? `<button type="button" class="mini-btn" onclick="viewUserActivityLogs('${escapeHtml(u.username)}')"><i class="fa fa-list"></i> Logs</button>`
+            : '';
+
+        return `
+            <tr>
+                <td><code>${shortId}</code></td>
+                <td><strong>@${escapeHtml(u.username)}</strong></td>
+                <td>${escapeHtml(u.display_name)}</td>
+                <td>${escapeHtml(u.contact || '-')}</td>
+                <td><span class="role-pill role-${u.role}">${u.role.replace('_', ' ')}</span></td>
+                <td><span class="status-${u.status}">${u.status.toUpperCase()}</span></td>
+                <td>${lastLogin}</td>
+                <td><small>C: ${createdStr}<br>U: ${updatedStr}</small></td>
+                <td style="display:flex;gap:6px;flex-wrap:wrap;">${editButton} ${logsButton}</td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function setAllPermissionCheckboxes(checked) {
+    document.querySelectorAll('#permCheckboxGrid input[type="checkbox"]').forEach(cb => {
+        cb.checked = checked;
+    });
+}
+
+function openUserFormModal(userId = null) {
+    if (!hasPerm('users.manage')) {
+        alert("Permission denied: users.manage required.");
+        return;
+    }
+
+    document.getElementById('userFormError').innerText = '';
+    document.getElementById('formPassword').value = '';
+
+    if (!userId) {
+        // Create mode
+        document.getElementById('userFormTitle').innerText = 'Create Sales Team Account';
+        document.getElementById('editUserId').value = '';
+        document.getElementById('formUsername').value = '';
+        document.getElementById('formUsername').disabled = false;
+        document.getElementById('formDisplayName').value = '';
+        document.getElementById('formContact').value = '';
+        document.getElementById('formRole').value = 'SALES_TEAM';
+        document.getElementById('formStatus').value = 'active';
+        document.getElementById('formPasswordLabel').innerText = 'Initial Password (Min 4 chars):';
+        setAllPermissionCheckboxes(false);
+        // Default product.view checked for new Sales Team member
+        const viewCb = document.querySelector('#permCheckboxGrid input[value="product.view"]');
+        if (viewCb) viewCb.checked = true;
+    } else {
+        // Edit mode
+        const u = staffUsersList.find(item => item.id === userId);
+        if (!u) return;
+
+        document.getElementById('userFormTitle').innerText = `Edit Account: ${u.display_name}`;
+        document.getElementById('editUserId').value = u.id;
+        document.getElementById('formUsername').value = u.username;
+        document.getElementById('formUsername').disabled = true;
+        document.getElementById('formDisplayName').value = u.display_name;
+        document.getElementById('formContact').value = u.contact || '';
+        document.getElementById('formRole').value = u.role;
+        document.getElementById('formStatus').value = u.status;
+        document.getElementById('formPasswordLabel').innerText = 'Reset Password (Leave blank to keep current):';
+
+        const perms = u.permissions || {};
+        document.querySelectorAll('#permCheckboxGrid input[type="checkbox"]').forEach(cb => {
+            cb.checked = Boolean(perms[cb.value]);
+        });
+    }
+
+    // Only Super Admin can assign ADMIN role
+    const adminOption = document.querySelector('#formRole option[value="ADMIN"]');
+    if (adminOption) {
+        adminOption.disabled = !(currentStaffUser && currentStaffUser.role === 'SUPER_ADMIN');
+    }
+
+    document.getElementById('userFormModal').style.display = 'block';
+}
+
+async function saveStaffUser() {
+    const errEl = document.getElementById('userFormError');
+    const btn = document.getElementById('saveUserFormBtn');
+    errEl.innerText = '';
+
+    const targetId = document.getElementById('editUserId').value || null;
+    const username = document.getElementById('formUsername').value.trim();
+    const displayName = document.getElementById('formDisplayName').value.trim();
+    const contact = document.getElementById('formContact').value.trim();
+    const role = document.getElementById('formRole').value;
+    const status = document.getElementById('formStatus').value;
+    const password = document.getElementById('formPassword').value.trim();
+
+    if (!targetId && !username) {
+        errEl.innerText = 'Username is required.';
+        return;
+    }
+    if (!displayName) {
+        errEl.innerText = 'Display Name is required.';
+        return;
+    }
+
+    const permsMap = {};
+    document.querySelectorAll('#permCheckboxGrid input[type="checkbox"]').forEach(cb => {
+        permsMap[cb.value] = cb.checked;
+    });
+
+    btn.disabled = true;
+    try {
+        const { data, error } = await supabaseClient.rpc('rpc_save_staff_user', {
+            p_target_id: targetId,
+            p_username: username,
+            p_display_name: displayName,
+            p_contact: contact,
+            p_role: role,
+            p_status: status,
+            p_password: password || null,
+            p_permissions: permsMap,
+            p_user_agent: navigator.userAgent
+        });
+
+        if (error) {
+            errEl.innerText = 'Database error: ' + error.message;
+            return;
+        }
+        if (!data || !data.success) {
+            errEl.innerText = (data && data.error) ? data.error : 'Failed to save user account.';
+            return;
+        }
+
+        closeModal('userFormModal');
+        showToast(targetId ? 'Staff account updated!' : 'Sales Team account created!');
+        await fetchStaffUsers();
+    } catch (e) {
+        errEl.innerText = 'Unexpected error: ' + e.message;
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+function viewUserActivityLogs(username) {
+    switchStaffView('logs');
+    document.getElementById('logSearchUser').value = username;
+    fetchAuditLogs();
+}
+
+// ==========================================
+// 10. ACTIVITY AUDIT LOGS & DETAIL VIEWER
+// ==========================================
+async function writeAuditLog(action, entityType, entityId, entityName, description, oldVal = null, newVal = null, result = 'Success') {
+    if (useLocalFallback || !supabaseClient || !staffSessionToken) return;
+    try {
+        await supabaseClient.rpc('rpc_write_audit_log', {
+            p_action: action,
+            p_entity_type: entityType,
+            p_entity_id: entityId || null,
+            p_entity_name: entityName || null,
+            p_description: description,
+            p_old_value: oldVal,
+            p_new_value: newVal,
+            p_result: result,
+            p_user_agent: navigator.userAgent
+        });
+    } catch (e) {
+        console.warn("Audit log write error:", e);
+    }
+}
+
+async function fetchAuditLogs() {
+    if (!hasPerm('logs.view') || useLocalFallback || !supabaseClient) return;
+    const tbody = document.getElementById('auditLogsTableBody');
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">Loading audit logs...</td></tr>';
+
+    const { data, error } = await supabaseClient
+        .from('activity_logs')
+        .select('*')
+        .order('id', { ascending: false })
+        .limit(500);
+
+    if (error) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:#ff4757;">Error loading logs: ${escapeHtml(error.message)}</td></tr>`;
+        return;
+    }
+
+    auditLogsList = data || [];
+
+    // Populate user filter dropdown dynamically
+    const userSelect = document.getElementById('logFilterUserSelect');
+    const prevSelected = userSelect.value;
+    const uniqueUsers = [...new Set(auditLogsList.map(l => l.username).filter(Boolean))];
+    userSelect.innerHTML = '<option value="">All Users</option>' +
+        uniqueUsers.map(u => `<option value="${escapeHtml(u)}">@${escapeHtml(u)}</option>`).join('');
+    userSelect.value = prevSelected;
+
+    renderAuditLogs();
+}
+
+function renderAuditLogs() {
+    const tbody = document.getElementById('auditLogsTableBody');
+    const qUser = document.getElementById('logSearchUser').value.toLowerCase().trim();
+    const qProd = document.getElementById('logSearchProduct').value.toLowerCase().trim();
+    const fAction = document.getElementById('logFilterAction').value;
+    const fUser = document.getElementById('logFilterUserSelect').value;
+    const fDate = document.getElementById('logFilterDate').value;
+    const sortOrder = document.getElementById('logSortOrder').value;
+
+    let filtered = [...auditLogsList];
+
+    if (qUser) {
+        filtered = filtered.filter(l =>
+            (l.username && l.username.toLowerCase().includes(qUser)) ||
+            (l.display_name && l.display_name.toLowerCase().includes(qUser))
+        );
+    }
+    if (qProd) {
+        filtered = filtered.filter(l =>
+            (l.entity_name && l.entity_name.toLowerCase().includes(qProd)) ||
+            (l.description && l.description.toLowerCase().includes(qProd))
+        );
+    }
+    if (fAction) {
+        filtered = filtered.filter(l => l.action === fAction);
+    }
+    if (fUser) {
+        filtered = filtered.filter(l => l.username === fUser);
+    }
+    if (fDate) {
+        filtered = filtered.filter(l => {
+            if (!l.created_at) return false;
+            const localDate = new Date(l.created_at).toLocaleDateString('en-CA'); // YYYY-MM-DD
+            return localDate === fDate;
+        });
+    }
+
+    filtered.sort((a, b) => sortOrder === 'oldest' ? (Number(a.id) - Number(b.id)) : (Number(b.id) - Number(a.id)));
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#777;">No matching activity logs found.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = filtered.map(log => {
+        const formattedLogId = String(log.id).padStart(6, '0');
+        const dtObj = new Date(log.created_at);
+        const dtStr = dtObj.toLocaleString([], { year: 'numeric', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        const resultColor = log.result === 'Success' ? '#2ed573' : '#ff4757';
+
+        return `
+            <tr class="clickable-row" onclick="openLogDetailModal(${log.id})" title="Click to inspect full activity details">
+                <td><code>${formattedLogId}</code></td>
+                <td style="white-space:nowrap;">${dtStr}</td>
+                <td><strong>${escapeHtml(log.display_name)}</strong><br><small>@${escapeHtml(log.username)}</small></td>
+                <td><span class="role-pill role-ADMIN">${escapeHtml(log.action)}</span></td>
+                <td>${escapeHtml(log.entity_name || '-')}</td>
+                <td>${escapeHtml(log.description)}</td>
+                <td><strong style="color:${resultColor};">${escapeHtml(log.result || 'Success')}</strong></td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function openLogDetailModal(logId) {
+    const log = auditLogsList.find(l => Number(l.id) === Number(logId));
+    if (!log) return;
+
+    const formattedLogId = String(log.id).padStart(6, '0');
+    const dtObj = new Date(log.created_at);
+    const datePart = dtObj.toLocaleDateString('en-CA');
+    const timePart = dtObj.toTimeString().split(' ')[0];
+
+    const oldHtml = log.old_value
+        ? `<div><strong>Before (Old Value):</strong><div class="diff-box">${escapeHtml(JSON.stringify(log.old_value, null, 2))}</div></div>`
+        : '';
+    const newHtml = log.new_value
+        ? `<div><strong>After (New Value):</strong><div class="diff-box">${escapeHtml(JSON.stringify(log.new_value, null, 2))}</div></div>`
+        : '';
+
+    document.getElementById('logDetailBody').innerHTML = `
+        <p><strong>Log ID:</strong> <code>${formattedLogId}</code></p>
+        <p><strong>User:</strong> ${escapeHtml(log.display_name)} (@${escapeHtml(log.username)})</p>
+        <p><strong>Action:</strong> ${escapeHtml(log.action)}</p>
+        <p><strong>Entity / Product:</strong> ${escapeHtml(log.entity_name || '-')} (${escapeHtml(log.entity_type)})</p>
+        <p><strong>Description:</strong> ${escapeHtml(log.description)}</p>
+        <p><strong>Date:</strong> ${datePart} &nbsp;|&nbsp; <strong>Time:</strong> ${timePart}</p>
+        <p><strong>Result:</strong> ${escapeHtml(log.result || 'Success')}</p>
+        <p><strong>Device / Browser:</strong> <small>${escapeHtml(log.user_agent || 'Not captured')}</small></p>
+        ${oldHtml}
+        ${newHtml}
+    `;
+
+    document.getElementById('logDetailModal').style.display = 'block';
+}
+
+function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+// ==========================================
+// 11. ABOUT & CONTACT EDITORS (Permission-gated + Audited)
+// ==========================================
 function openAboutEdit() {
+    if (!hasPerm('settings.edit')) {
+        alert("Permission denied: settings.edit required.");
+        return;
+    }
     document.getElementById('editAboutText').value = document.getElementById('aboutTextEl').innerText;
     document.getElementById('aboutModal').style.display = 'block';
 }
-function saveAbout() {
+async function saveAbout() {
+    if (!hasPerm('settings.edit')) return;
+    const oldTxt = document.getElementById('aboutTextEl').innerText;
     const txt = document.getElementById('editAboutText').value.trim();
     document.getElementById('aboutTextEl').innerText = txt;
     localStorage.setItem('kosoepets_about_v741', txt);
+    await writeAuditLog('UPDATE_SETTINGS', 'SETTINGS', 'about', 'About Us', 'Updated About Us footer text', { about: oldTxt }, { about: txt });
     closeModal('aboutModal');
 }
 function openContactEdit() {
+    if (!hasPerm('settings.edit')) {
+        alert("Permission denied: settings.edit required.");
+        return;
+    }
     document.getElementById('editPhone').value = document.getElementById('contactPhoneEl').innerText.trim();
     document.getElementById('editEmail').value = document.getElementById('contactEmailEl').innerText.trim();
     document.getElementById('editFb').value = document.getElementById('fbLinkEl').href;
     document.getElementById('editTiktok').value = document.getElementById('tiktokLinkEl').href;
     document.getElementById('contactModal').style.display = 'block';
 }
-function saveContact() {
+async function saveContact() {
+    if (!hasPerm('settings.edit')) return;
     const phone = document.getElementById('editPhone').value.trim();
     const email = document.getElementById('editEmail').value.trim();
     const fb = document.getElementById('editFb').value.trim();
@@ -1047,5 +1756,6 @@ function saveContact() {
     document.getElementById('tiktokLinkEl').href = tiktok;
     
     localStorage.setItem('kosoepets_contact_v741', JSON.stringify({ phone, email, fb, tiktok }));
+    await writeAuditLog('UPDATE_SETTINGS', 'SETTINGS', 'contact', 'Contact Us', 'Updated Contact Us links', null, { phone, email, fb, tiktok });
     closeModal('contactModal');
 }
