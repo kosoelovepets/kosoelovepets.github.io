@@ -67,13 +67,20 @@ main h2 { text-align: center; margin-bottom: 20px; color: #ff758c; font-size: 28
 .product-info h3 { margin: 4px 0 6px; font-size: 18px; color: #333; line-height: 1.3; font-family: 'Baloo 2', cursive; font-weight: 700; word-break: break-word; }
 .price { font-size: 20px; color: #ff758c; font-weight: 800; margin-bottom: 6px; font-family: 'Nunito', sans-serif; }
 .product-meta { font-size: 13px; color: #666; margin-bottom: 4px; font-weight: 600; word-break: break-word; }
-.buy-btn { background-color: #ff9a9e; color: white; border: none; padding: 11px 10px; width: 100%; border-radius: 8px; margin-top: auto; padding-top: 11px; cursor: pointer; font-size: 15px; font-weight: 800; transition: background 0.2s; }
+.buy-btn { background-color: #ff9a9e; color: white; border: none; padding: 11px 10px; width: 100%; border-radius: 8px; margin-top: auto; cursor: pointer; font-size: 15px; font-weight: 800; transition: background 0.2s; }
 .buy-btn:hover { background-color: #ff758c; }
 .buy-btn:disabled { background-color: #ccc; cursor: not-allowed; }
 .card-admin-actions { margin-top: 10px; display: flex; justify-content: center; gap: 8px; }
 .edit-btn, .delete-btn { color: white; border: none; padding: 7px 12px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 700; }
 .edit-btn { background-color: #333; }
 .delete-btn { background-color: #ff4757; }
+
+/* Live Stock Status Indicators on Product Cards */
+.stock-status-pill { display: inline-flex; align-items: center; justify-content: center; gap: 5px; font-size: 12px; font-weight: 800; padding: 4px 10px; border-radius: 14px; margin: 2px auto 8px; }
+.stock-status-pill.in-stock { background: #e3fcef; color: #006644; border: 1px solid #abf5d1; }
+.stock-status-pill.low-stock { background: #fff4e5; color: #b25900; border: 1px solid #ffd599; }
+.stock-status-pill.out-stock { background: #ffebe6; color: #bf2600; border: 1px solid #ffbdad; }
+.stock-status-pill.unknown-stock { background: #fef9e7; color: #7d6608; border: 1px solid #f9e79f; }
 
 /* Footer */
 footer { background-color: #333; color: white; padding: 40px 20px; margin-top: 50px; }
@@ -130,7 +137,7 @@ input:focus, textarea:focus, select:focus { border-color: #ff9a9e; }
 .modal-content > button[type="button"]:disabled { background-color: #999; cursor: not-allowed; }
 
 /* ==========================================
-   V7.5 RBAC, USER MANAGEMENT & AUDIT LOG STYLES
+   V7.5.3 RBAC, USER MANAGEMENT & AUDIT LOG STYLES
    ========================================== */
 .staff-badge { height: 38px; background: #2f3542; color: #fff; padding: 0 12px; border-radius: 20px; font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
 .staff-nav-bar { background: #2f3542; padding: 8px 15px; border-top: 1px solid #444; }
@@ -185,8 +192,6 @@ input:focus, textarea:focus, select:focus { border-color: #ff9a9e; }
 .log-detail-body { display: flex; flex-direction: column; gap: 8px; font-size: 14px; }
 .diff-box { background: #f8f9fa; border: 1px solid #ddd; border-radius: 8px; padding: 10px; font-family: monospace; font-size: 12px; white-space: pre-wrap; max-height: 180px; overflow-y: auto; }
 
-.stock-badge { position: absolute; top: 12px; left: 12px; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 800; z-index: 4; }
-.stock-badge.out { background: #ff4757; color: #fff; }
 .last-updated-tag { font-size: 11px; color: #888; margin-top: 6px; font-style: italic; }
 .settings-quick-actions { display: flex; gap: 12px; flex-wrap: wrap; }
 

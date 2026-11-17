@@ -1,7 +1,7 @@
 // ==========================================
 // 1. SUPABASE CONFIGURATION (Backend Sync + Staff Token Header)
 // ==========================================
-const APP_VERSION = 'v7.5';
+const APP_VERSION = 'v7.5.3';
 const SUPABASE_URL = 'https://moggsrqzhygvavsdcanh.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1vZ2dzcnF6aHlndmF2c2RjYW5oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ0NzE0NzYsImV4cCI6MjExMDA0NzQ3Nn0.l8Et78xU1eo6f7UND-0ONHPPJfM_oJ-qEMyKUAZoPIU';
 
@@ -48,7 +48,8 @@ const translations = {
         buy_viber: "Buy via Viber", download_pdf: "Download PDF", cart_empty: "Your cart is empty.",
         img_limit: "File size exceeds the maximum limit of 5 MB. Please select another image.",
         search_res: "Search Results for", no_match: "No matching products found.",
-        voucher_title: "Shopping Voucher", thank_you: "Thanks for your shopping!"
+        voucher_title: "Shopping Voucher", thank_you: "Thanks for your shopping!",
+        in_stock: "In Stock", low_stock: "Low Stock", out_of_stock: "Out of Stock", stock_unknown: "Stock unavailable"
     },
     mm: {
         home: "ပင်မစာမျက်နှာ", cats: "ကြောင်များ", dogs: "ခွေးများ", accessories: "ဆက်စပ်ပစ္စည်းများ",
@@ -61,7 +62,8 @@ const translations = {
         buy_viber: "Viber ဖြင့် ဝယ်မည်", download_pdf: "PDF ဒေါင်းလုဒ်ဆွဲရန်", cart_empty: "စျေးခြင်းတောင်း ဗလာဖြစ်နေပါသည်။",
         img_limit: "ဖိုင်အရွယ်အစားသည် အများဆုံး 5 MB ထက်ကျော်လွန်နေပါသည်။ ကျေးဇူးပြု၍ အခြားပုံတစ်ပုံကို ရွေးချယ်ပါ။",
         search_res: "ရှာဖွေမှုရလဒ်များ -", no_match: "ကိုက်ညီသော ထုတ်ကုန်မတွေ့ပါ။",
-        voucher_title: "အဝယ်ဘောက်ချာ", thank_you: "ဝယ်ယူအားပေးမှုအတွက် ကျေးဇူးတင်ပါသည်!"
+        voucher_title: "အဝယ်ဘောက်ချာ", thank_you: "ဝယ်ယူအားပေးမှုအတွက် ကျေးဇူးတင်ပါသည်!",
+        in_stock: "ပစ္စည်းရှိသည်", low_stock: "လက်ကျန်နည်းနေသည်", out_of_stock: "ပစ္စည်းပြတ်နေသည်", stock_unknown: "လက်ကျန်စာရင်း မရရှိနိုင်ပါ"
     }
 };
 
@@ -79,24 +81,35 @@ function switchLanguage() {
     } else {
         categoryTitle.innerText = translations[currentLang].all_items;
     }
+    renderProducts(currentProducts);
     if (document.getElementById('cartModal').style.display === 'block') {
         renderCartItems();
     }
 }
 
 // ==========================================
-// 3. CENTRALIZED STATE, RBAC & INIT
+// 3. CENTRALIZED STATE, RBAC & STOCK CACHE
 // ==========================================
 let products = [];
 let currentProducts = [];
 let cart = JSON.parse(localStorage.getItem('kosoepets_cart_v741')) || [];
 
+// Live Google Sheets Stock Cache (Single-batch cached by SKU)
+let productStockMap = {}; // { 'P001': { product_sku, product_id, stock_qty, stock_status, last_synced_at } }
+let stockLowThreshold = 5;
+let stockSyncIntervalSec = 60;
+let stockSyncTimer = null;
+let lastStockSyncError = null;
+let stockChannelSubscribed = false;
+
 // Role-Based Access Control State
-let currentStaffUser = null; // { id, username, display_name, contact, role, status }
-let currentPermissions = {}; // { 'product.add': true, ... }
+let currentStaffUser = null;
+let currentPermissions = {};
 let staffUsersList = [];
 let auditLogsList = [];
+let stockSyncLogsList = [];
 let activeStaffView = 'products';
+let activeLogSubTab = 'staff';
 
 const ALL_PERMISSION_CODES = [
     'product.view', 'product.add', 'product.edit', 'product.price_edit',
@@ -150,8 +163,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     updateCartCount();
     await restoreStaffSession();
-    fetchProducts();
-    fetchSettings();
+    await fetchSettings();
+    await fetchProducts();
+    await fetchCachedProductStock();
+    startStockAutoRefresh();
 });
 
 async function restoreStaffSession() {
@@ -219,6 +234,16 @@ async function fetchSettings() {
         if (!error && data) {
             if (data.banner_title) document.getElementById('bannerTextEl').innerText = data.banner_title;
             if (data.banner_images && data.banner_images.length > 0) bannerImages = data.banner_images;
+            if (data.stock_low_threshold) stockLowThreshold = Number(data.stock_low_threshold);
+            if (data.stock_sync_interval_sec) stockSyncIntervalSec = Number(data.stock_sync_interval_sec);
+
+            const threshInput = document.getElementById('settingLowThreshold');
+            const intInput = document.getElementById('settingSyncInterval');
+            const threshLbl = document.getElementById('dashLowThresholdLabel');
+            if (threshInput) threshInput.value = stockLowThreshold;
+            if (intInput) intInput.value = stockSyncIntervalSec;
+            if (threshLbl) threshLbl.innerText = stockLowThreshold;
+
             renderBannerSlideshow();
         }
 
@@ -258,7 +283,152 @@ function renderBannerSlideshow() {
 }
 
 // ==========================================
-// 3.6 SAFE IMAGE UPLOAD (MAGIC-BYTE CHECK + HEIC FALLBACK)
+// 3.6 GOOGLE SHEETS LIVE STOCK SYNCHRONIZATION (BATCHED & RESILIENT)
+// ==========================================
+function getEffectiveProductStock(item) {
+    // Manual admin override: Force Out of Stock
+    if (item.is_available === false) {
+        return { status: 'OUT_OF_STOCK', qty: 0, known: true, lastSyncedAt: null };
+    }
+
+    const sku = item.sku ? String(item.sku).trim().toUpperCase() : '';
+    const record = sku ? productStockMap[sku] : null;
+
+    if (!record || record.stock_status === 'UNKNOWN') {
+        return { status: 'UNKNOWN', qty: null, known: false, lastSyncedAt: record ? record.last_synced_at : null };
+    }
+
+    const qty = Number(record.stock_qty ?? 0);
+    let computedStatus = 'IN_STOCK';
+    if (qty <= 0 || record.stock_status === 'OUT_OF_STOCK') {
+        computedStatus = 'OUT_OF_STOCK';
+    } else if (qty <= stockLowThreshold || record.stock_status === 'LOW_STOCK') {
+        computedStatus = 'LOW_STOCK';
+    }
+
+    return {
+        status: computedStatus,
+        qty,
+        known: true,
+        lastSyncedAt: record.last_synced_at
+    };
+}
+
+async function fetchCachedProductStock() {
+    if (useLocalFallback || !supabaseClient) return;
+    try {
+        const { data, error } = await supabaseClient.from('product_stock').select('*');
+        if (error) {
+            console.warn("Could not read product_stock cache:", error.message);
+            return;
+        }
+        const nextMap = {};
+        for (const row of data || []) {
+            if (row.product_sku) {
+                nextMap[String(row.product_sku).trim().toUpperCase()] = row;
+            }
+        }
+        productStockMap = nextMap;
+        renderProducts(currentProducts);
+        updateDashboardMetrics();
+    } catch (e) {
+        console.warn("Stock cache fetch error:", e);
+    }
+}
+
+async function triggerGoogleSheetSyncNow(isManual = false) {
+    if (useLocalFallback || !supabaseClient) return;
+    const btn = document.getElementById('triggerSheetSyncBtn');
+    if (btn && isManual) btn.disabled = true;
+
+    try {
+        const { data, error } = await supabaseClient.functions.invoke('sync-google-sheet-stock');
+        if (error || (data && data.success === false)) {
+            const errDetail = (data && data.error) ? data.error : (error ? error.message : 'Sync failed');
+            lastStockSyncError = errDetail;
+            updateStockWarningBanner();
+            if (isManual) alert("Stock sync warning: " + errDetail + "
+Showing last synchronized data.");
+        } else {
+            lastStockSyncError = null;
+            updateStockWarningBanner();
+            if (isManual) {
+                showToast(`Stock synced! (${data.products_received || 0} rows, ${data.products_updated || 0} changed)`);
+            }
+        }
+    } catch (e) {
+        lastStockSyncError = e.message;
+        updateStockWarningBanner();
+    } finally {
+        if (btn && isManual) btn.disabled = false;
+        await fetchCachedProductStock();
+        if (activeStaffView === 'logs' && activeLogSubTab === 'sync') {
+            fetchStockSyncLogs();
+        }
+    }
+}
+
+function updateStockWarningBanner() {
+    const banner = document.getElementById('stockSyncWarningBanner');
+    if (!banner) return;
+    // Show internal sync warning only to logged-in staff when Google Sheets sync fails
+    if (currentStaffUser && lastStockSyncError) {
+        banner.classList.remove('hidden');
+    } else {
+        banner.classList.add('hidden');
+    }
+}
+
+function startStockAutoRefresh() {
+    clearInterval(stockSyncTimer);
+    const intervalMs = Math.max(15, Number(stockSyncIntervalSec) || 60) * 1000;
+
+    // Periodic non-disruptive refresh (updates stock state without reloading the page)
+    stockSyncTimer = setInterval(async () => {
+        if (currentStaffUser) {
+            await triggerGoogleSheetSyncNow(false);
+        } else {
+            await fetchCachedProductStock();
+        }
+    }, intervalMs);
+
+    // Subscribe to Realtime changes on product_stock so all devices update instantaneously
+    if (!useLocalFallback && supabaseClient && !stockChannelSubscribed) {
+        stockChannelSubscribed = true;
+        supabaseClient.channel('public:product_stock')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'product_stock' }, () => {
+                fetchCachedProductStock();
+            })
+            .subscribe();
+    }
+}
+
+async function saveStockSyncSettings() {
+    if (!hasPerm('settings.edit')) return;
+    const newThresh = Math.max(1, parseInt(document.getElementById('settingLowThreshold').value) || 5);
+    const newInt = Math.max(15, parseInt(document.getElementById('settingSyncInterval').value) || 60);
+
+    const { error } = await supabaseClient.from('store_settings').upsert({
+        id: 1,
+        stock_low_threshold: newThresh,
+        stock_sync_interval_sec: newInt
+    });
+    if (error) {
+        alert("Error saving stock settings: " + error.message);
+        return;
+    }
+
+    stockLowThreshold = newThresh;
+    stockSyncIntervalSec = newInt;
+    startStockAutoRefresh();
+    await writeAuditLog('UPDATE_SETTINGS', 'SETTINGS', 'stock_config', 'Stock Sync Settings', `Updated Low Stock threshold to ${newThresh} and sync interval to ${newInt}s`);
+    showToast('Stock sync settings updated!');
+    renderProducts(currentProducts);
+    updateDashboardMetrics();
+}
+
+// ==========================================
+// 3.7 SAFE IMAGE UPLOAD (MAGIC-BYTE CHECK + HEIC FALLBACK)
 // ==========================================
 const SUPABASE_BUCKET = 'product-images';
 
@@ -487,9 +657,9 @@ async function fetchProducts() {
     if (useLocalFallback) {
         let stored = localStorage.getItem('kosoepets_products_v741');
         products = stored ? JSON.parse(stored) : [
-            { id: 1, type: 'Cats', category: 'Food', name: 'ကြောင်စာ (Premium Dry Cat Food)', price: 25000, exp: '2028-05-01', img: 'https://images.unsplash.com/photo-1574635677940-d98c25dbff45?auto=format&fit=crop&w=400&q=80', specs: 'ထိုင်းနိုင်ငံထုတ် ကြောင်ကလေးတွေအရမ်းကြိုက်', is_available: true, created_at: 1731400001000 },
-            { id: 2, type: 'Dogs', category: 'Snack', name: 'Beef Chew Bones (အမဲရိုးသရေစာ)', price: 8500, exp: '2027-08-11', img: 'https://images.unsplash.com/photo-1589924691995-400dc9ecc119?auto=format&fit=crop&w=400&q=80', specs: 'သွားသန့်ရှင်းစေပြီး အကြာကြီးဝါးနိုင်သည်', is_available: true, created_at: 1731400002000 },
-            { id: 3, type: 'Accessories', category: 'Gear', name: 'Reflective Dog Harness (ခွေးလည်ပတ်ကြိုး)', price: 18000, exp: 'N/A', img: 'https://images.unsplash.com/photo-1584362917165-526a968579e8?auto=format&fit=crop&w=400&q=80', specs: 'ခိုင်ခံ့ပြီး ညဘက်အလင်းပြန်သည်', is_available: true, created_at: 1731400003000 }
+            { id: 1, sku: 'P001', type: 'Cats', category: 'Food', name: 'ကြောင်စာ (Premium Dry Cat Food)', price: 25000, exp: '2028-05-01', img: 'https://images.unsplash.com/photo-1574635677940-d98c25dbff45?auto=format&fit=crop&w=400&q=80', specs: 'ထိုင်းနိုင်ငံထုတ် ကြောင်ကလေးတွေအရမ်းကြိုက်', is_available: true, created_at: 1731400001000 },
+            { id: 2, sku: 'P002', type: 'Dogs', category: 'Snack', name: 'Beef Chew Bones (အမဲရိုးသရေစာ)', price: 8500, exp: '2027-08-11', img: 'https://images.unsplash.com/photo-1589924691995-400dc9ecc119?auto=format&fit=crop&w=400&q=80', specs: 'သွားသန့်ရှင်းစေပြီး အကြာကြီးဝါးနိုင်သည်', is_available: true, created_at: 1731400002000 },
+            { id: 3, sku: 'P003', type: 'Accessories', category: 'Gear', name: 'Reflective Dog Harness (ခွေးလည်ပတ်ကြိုး)', price: 18000, exp: 'N/A', img: 'https://images.unsplash.com/photo-1584362917165-526a968579e8?auto=format&fit=crop&w=400&q=80', specs: 'ခိုင်ခံ့ပြီး ညဘက်အလင်းပြန်သည်', is_available: true, created_at: 1731400003000 }
         ];
         products = sortNewestFirst(products);
         applyCurrentFilter();
@@ -562,35 +732,66 @@ setupProductImageUpload('addImgFile', 'addImg', 'addImgLoading', 'saveAddBtn', (
 setupProductImageUpload('editImgFile', 'editImg', 'editImgLoading', 'saveEditBtn', (url) => { pendingEditImgUrl = url; });
 
 // ==========================================
-// 5. CART, INDIVIDUAL REMOVE & PDF VOUCHER
+// 5. STOCK-AWARE CART, SERVER VALIDATION & PDF VOUCHER
 // ==========================================
 function addToCart(id) {
     const item = products.find(p => Number(p.id) === Number(id));
-    if (item) {
-        if (item.is_available === false) {
-            alert(currentLang === 'mm' ? 'ဤပစ္စည်း လက်ရှိပြတ်လပ်နေပါသည်။' : 'Sorry, this product is currently out of stock.');
-            return;
-        }
-        let existing = cart.find(c => Number(c.id) === Number(id));
-        if (existing) {
-            existing.qty += 1;
-        } else {
-            cart.push({ ...item, qty: 1 });
-        }
-        processCartStateChange();
-        showToast('Successfully added to your cart!');
+    if (!item) return;
+
+    const stockInfo = getEffectiveProductStock(item);
+    if (stockInfo.status === 'OUT_OF_STOCK') {
+        alert(currentLang === 'mm' ? 'ဤပစ္စည်း လက်ရှိပြတ်လပ်နေပါသည်။' : 'Sorry, this product is currently out of stock.');
+        return;
     }
+
+    let existing = cart.find(c => Number(c.id) === Number(id));
+    const currentQtyInCart = existing ? existing.qty : 0;
+
+    if (stockInfo.known && stockInfo.qty !== null && (currentQtyInCart + 1) > stockInfo.qty) {
+        alert(
+            currentLang === 'mm'
+                ? `လက်ကျန်ပစ္စည်း ${stockInfo.qty} ခုသာ ကျန်ရှိပါသည်။ ထပ်မံတိုး၍မရပါ။`
+                : `Only ${stockInfo.qty} left in stock for "${item.name}". Cannot add more.`
+        );
+        return;
+    }
+
+    if (existing) {
+        existing.qty += 1;
+    } else {
+        cart.push({ ...item, qty: 1 });
+    }
+    processCartStateChange();
+    showToast('Successfully added to your cart!');
 }
 
 function updateCartQty(id, delta) {
     let item = cart.find(c => Number(c.id) === Number(id));
-    if (item) {
-        item.qty += delta;
-        if (item.qty <= 0) {
-            cart = cart.filter(c => Number(c.id) !== Number(id));
+    if (!item) return;
+
+    const masterItem = products.find(p => Number(p.id) === Number(id)) || item;
+    const stockInfo = getEffectiveProductStock(masterItem);
+
+    if (delta > 0) {
+        if (stockInfo.status === 'OUT_OF_STOCK') {
+            alert(currentLang === 'mm' ? 'ဤပစ္စည်း လက်ရှိပြတ်လပ်နေပါသည်။' : 'This item is now out of stock.');
+            return;
         }
-        processCartStateChange();
+        if (stockInfo.known && stockInfo.qty !== null && (item.qty + delta) > stockInfo.qty) {
+            alert(
+                currentLang === 'mm'
+                    ? `လက်ကျန်ပစ္စည်း ${stockInfo.qty} ခုသာ ကျန်ရှိပါသည်။`
+                    : `Maximum available stock is ${stockInfo.qty} for "${masterItem.name}".`
+            );
+            return;
+        }
     }
+
+    item.qty += delta;
+    if (item.qty <= 0) {
+        cart = cart.filter(c => Number(c.id) !== Number(id));
+    }
+    processCartStateChange();
 }
 
 function removeCartItem(id) {
@@ -665,11 +866,40 @@ function renderCartItems() {
     }
 }
 
-function downloadCartPDF() {
+async function verifyServerCartStock() {
+    if (useLocalFallback || !supabaseClient) return true;
+    try {
+        const payload = cart.map(c => ({ id: c.id, qty: c.qty }));
+        const { data, error } = await supabaseClient.rpc('rpc_validate_cart_stock', { p_items: payload });
+        if (error) {
+            console.warn("Server stock validation RPC unavailable:", error.message);
+            return true; // Fail open safely if RPC not yet migrated
+        }
+        if (data && data.valid === false) {
+            const errList = Array.isArray(data.errors) ? data.errors.join('
+• ') : 'Insufficient stock.';
+            alert("Stock availability changed:
+
+• " + errList + "
+
+Please adjust quantities in your cart.");
+            await fetchCachedProductStock();
+            return false;
+        }
+        return true;
+    } catch (e) {
+        return true;
+    }
+}
+
+async function downloadCartPDF() {
     if (cart.length === 0) {
         alert(translations[currentLang].cart_empty);
         return;
     }
+
+    const stockValid = await verifyServerCartStock();
+    if (!stockValid) return;
 
     const t = translations[currentLang];
     const now = new Date();
@@ -769,6 +999,9 @@ function downloadCartPDF() {
 async function redirectToViber() {
     if (cart.length === 0) return;
 
+    const stockValid = await verifyServerCartStock();
+    if (!stockValid) return;
+
     const t = translations[currentLang];
     let grandTotal = 0;
     let orderSummary = `Ko Soe Love Pets - Order\n------------------------\n`;
@@ -823,7 +1056,8 @@ function applyCurrentFilter() {
             (p.name && p.name.toLowerCase().includes(term)) ||
             (p.specs && p.specs.toLowerCase().includes(term)) ||
             (p.type && p.type.toLowerCase().includes(term)) ||
-            (p.category && p.category.toLowerCase().includes(term))
+            (p.category && p.category.toLowerCase().includes(term)) ||
+            (p.sku && p.sku.toLowerCase().includes(term))
         );
     } else if (!activeCategoryFilter) {
         categoryTitle.innerText = translations[currentLang].all_items;
@@ -841,6 +1075,7 @@ function renderProducts(items) {
         return;
     }
 
+    const t = translations[currentLang];
     const canEdit = canEditAnyProductField();
     const canDelete = hasPerm('product.delete');
 
@@ -848,8 +1083,19 @@ function renderProducts(items) {
         const card = document.createElement('div');
         card.className = 'product-card';
 
-        const isAvailable = item.is_available !== false;
-        const stockBadgeHtml = !isAvailable ? `<span class="stock-badge out">Out of Stock</span>` : '';
+        const stockInfo = getEffectiveProductStock(item);
+        const isOutOfStock = stockInfo.status === 'OUT_OF_STOCK';
+
+        let stockPillHtml = '';
+        if (stockInfo.status === 'IN_STOCK') {
+            stockPillHtml = `<div class="stock-status-pill in-stock">🟢 ${t.in_stock}</div>`;
+        } else if (stockInfo.status === 'LOW_STOCK') {
+            stockPillHtml = `<div class="stock-status-pill low-stock">🟠 ${t.low_stock}</div>`;
+        } else if (stockInfo.status === 'OUT_OF_STOCK') {
+            stockPillHtml = `<div class="stock-status-pill out-stock">🔴 ${t.out_of_stock}</div>`;
+        } else {
+            stockPillHtml = `<div class="stock-status-pill unknown-stock">🟡 ${t.stock_unknown}</div>`;
+        }
 
         let adminButtons = [];
         if (canEdit) {
@@ -860,11 +1106,10 @@ function renderProducts(items) {
         }
         const adminHtml = adminButtons.length > 0 ? `<div class="card-admin-actions">${adminButtons.join('')}</div>` : '';
 
-        // Staff-only "Last updated by" indicator
         let updatedMetaHtml = '';
         if (currentStaffUser && item.updated_by) {
             const dt = item.updated_at ? new Date(item.updated_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : '';
-            updatedMetaHtml = `<p class="last-updated-tag">Last updated by: <strong>${escapeHtml(item.updated_by)}</strong>${dt ? ` (${dt})` : ''}</p>`;
+            updatedMetaHtml = `<p class="last-updated-tag">${item.sku ? `[${escapeHtml(item.sku)}] ` : ''}Updated by: <strong>${escapeHtml(item.updated_by)}</strong>${dt ? ` (${dt})` : ''}</p>`;
         }
 
         let imgHtml = item.img ? `<img src="${item.img}" alt="${escapeHtml(item.name)}" class="product-img" onclick="openImageZoom('${item.img}')" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
@@ -872,15 +1117,15 @@ function renderProducts(items) {
             : `<div class="product-img-broken"><i class="fa fa-image"></i></div>`;
 
         card.innerHTML = `
-            ${stockBadgeHtml}
             ${imgHtml}
             <div class="product-info">
                 <h3>${escapeHtml(item.name)}</h3>
                 <p class="price">${Number(item.price).toLocaleString()} MMK</p>
+                ${stockPillHtml}
                 <p class="product-meta"><strong>Exp:</strong> ${escapeHtml(item.exp)}</p>
                 <p class="product-meta">${escapeHtml(item.specs)}</p>
-                <button type="button" class="buy-btn" onclick="addToCart(${item.id})" ${!isAvailable ? 'disabled' : ''}>
-                    ${isAvailable ? '🛒 Add to Cart' : 'Out of Stock'}
+                <button type="button" class="buy-btn" onclick="addToCart(${item.id})" ${isOutOfStock ? 'disabled' : ''}>
+                    ${!isOutOfStock ? '🛒 Add to Cart' : `🔴 ${t.out_of_stock}`}
                 </button>
                 ${adminHtml}
                 ${updatedMetaHtml}
@@ -971,7 +1216,6 @@ async function login() {
         currentStaffUser = data.user;
         currentPermissions = data.permissions || {};
 
-        // Rebuild Supabase client so all subsequent requests include x-staff-token header for RLS
         rebuildSupabaseClient();
 
         closeModal('loginModal');
@@ -1016,16 +1260,16 @@ function applyStaffUIState() {
         badge.innerHTML = '';
     }
 
-    // Permission-gated UI controls
     document.getElementById('addBtn').classList.toggle('hidden', !hasPerm('product.add'));
     document.getElementById('editBannerBtn').classList.toggle('hidden', !hasPerm('settings.edit'));
     document.getElementById('editAboutBtn').classList.toggle('hidden', !hasPerm('settings.edit'));
     document.getElementById('editContactBtn').classList.toggle('hidden', !hasPerm('settings.edit'));
 
-    // Staff Navigation Tabs
     document.getElementById('tabBtnUsers').classList.toggle('hidden', !hasPerm('users.manage'));
     document.getElementById('tabBtnLogs').classList.toggle('hidden', !hasPerm('logs.view'));
     document.getElementById('tabBtnSettings').classList.toggle('hidden', !hasPerm('settings.edit'));
+
+    updateStockWarningBanner();
 
     if (!loggedIn) {
         switchStaffView('products');
@@ -1056,26 +1300,65 @@ function switchStaffView(viewName) {
     document.getElementById('staffLogsSection').classList.toggle('hidden', viewName !== 'logs');
     document.getElementById('staffSettingsSection').classList.toggle('hidden', viewName !== 'settings');
 
-    // Keep banner & product catalog visible on Products view (and always visible to customers)
     const showCatalog = !currentStaffUser || viewName === 'products';
     document.getElementById('catalogMainSection').classList.toggle('hidden', !showCatalog);
     document.getElementById('mainBannerSection').classList.toggle('hidden', !showCatalog);
 
     if (viewName === 'dashboard') updateDashboardMetrics();
     if (viewName === 'users' && hasPerm('users.manage')) fetchStaffUsers();
-    if (viewName === 'logs' && hasPerm('logs.view')) fetchAuditLogs();
+    if (viewName === 'logs' && hasPerm('logs.view')) refreshCurrentLogTab();
 }
 
 function updateDashboardMetrics() {
     if (!currentStaffUser) return;
     document.getElementById('dashTotalProducts').innerText = products.length;
-    const inStock = products.filter(p => p.is_available !== false).length;
-    document.getElementById('dashInStock').innerText = inStock;
-    document.getElementById('dashOutStock').innerText = products.length - inStock;
+
+    let inStockCount = 0;
+    let lowStockCount = 0;
+    let outStockCount = 0;
+
+    products.forEach(p => {
+        const s = getEffectiveProductStock(p);
+        if (s.status === 'IN_STOCK') inStockCount++;
+        else if (s.status === 'LOW_STOCK') lowStockCount++;
+        else if (s.status === 'OUT_OF_STOCK') outStockCount++;
+    });
+
+    document.getElementById('dashInStock').innerText = inStockCount;
+    document.getElementById('dashLowStock').innerText = lowStockCount;
+    document.getElementById('dashOutStock').innerText = outStockCount;
 
     const rolePill = document.getElementById('dashboardRoleSummary');
     rolePill.className = `role-pill role-${currentStaffUser.role}`;
     rolePill.innerText = currentStaffUser.role.replace('_', ' ');
+
+    // Render Staff Product Stock Summary Table
+    const stockTbody = document.getElementById('staffStockTableBody');
+    if (stockTbody) {
+        if (products.length === 0) {
+            stockTbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">No products found.</td></tr>';
+        } else {
+            stockTbody.innerHTML = products.map(p => {
+                const s = getEffectiveProductStock(p);
+                let badge = '<span class="stock-status-pill unknown-stock">🟡 Stock Unavailable</span>';
+                if (s.status === 'IN_STOCK') badge = '<span class="stock-status-pill in-stock">🟢 In Stock</span>';
+                else if (s.status === 'LOW_STOCK') badge = '<span class="stock-status-pill low-stock">🟠 Low Stock</span>';
+                else if (s.status === 'OUT_OF_STOCK') badge = '<span class="stock-status-pill out-stock">🔴 Out of Stock</span>';
+
+                const syncedAt = s.lastSyncedAt ? new Date(s.lastSyncedAt).toLocaleString() : 'Not synced yet';
+                return `
+                    <tr>
+                        <td><code>${escapeHtml(p.sku || '-')}</code></td>
+                        <td><strong>${escapeHtml(p.name)}</strong></td>
+                        <td>${Number(p.price).toLocaleString()} MMK</td>
+                        <td><strong>${s.known && s.qty !== null ? s.qty : '-'}</strong></td>
+                        <td>${badge}</td>
+                        <td><small>${syncedAt}</small></td>
+                    </tr>
+                `;
+            }).join('');
+        }
+    }
 
     const badgesEl = document.getElementById('myPermissionsBadges');
     badgesEl.innerHTML = ALL_PERMISSION_CODES.map(code => {
@@ -1128,6 +1411,7 @@ function openAddModal() {
         alert("Permission denied: You do not have 'product.add' permission.");
         return;
     }
+    document.getElementById('addSku').value = '';
     document.getElementById('addName').value = '';
     document.getElementById('addImg').value = '';
     document.getElementById('addImgFile').value = '';
@@ -1137,9 +1421,7 @@ function openAddModal() {
     document.getElementById('addAvailability').value = 'true';
     document.getElementById('addSpecs').value = '';
 
-    // Hide image upload controls if user lacks product.image_edit
     document.getElementById('addImageGroup').classList.toggle('hidden', !hasPerm('product.image_edit'));
-
     document.getElementById('addModal').style.display = 'block';
 }
 
@@ -1152,6 +1434,7 @@ function openEdit(id) {
     if (!item) return;
 
     document.getElementById('editId').value = item.id;
+    document.getElementById('editSku').value = item.sku || '';
     document.getElementById('editName').value = item.name;
     document.getElementById('editImg').value = item.img;
     pendingEditImgUrl = '';
@@ -1161,7 +1444,6 @@ function openEdit(id) {
     document.getElementById('editSpecs').value = item.specs;
     document.getElementById('editImgFile').value = '';
 
-    // Show/hide individual edit sections based on assigned permissions
     document.getElementById('editDetailsGroup').classList.toggle('hidden', !hasPerm('product.edit'));
     document.getElementById('editImageGroup').classList.toggle('hidden', !hasPerm('product.image_edit'));
     document.getElementById('editPriceGroup').classList.toggle('hidden', !hasPerm('product.price_edit'));
@@ -1181,7 +1463,10 @@ async function saveNewProduct() {
         ? (document.getElementById('addImg').value.trim() || pendingAddImgUrl || 'https://via.placeholder.com/400x300?text=No+Image')
         : 'https://via.placeholder.com/400x300?text=No+Image';
 
+    const rawSku = document.getElementById('addSku').value.trim().toUpperCase();
+
     const newProd = {
+        sku: rawSku || null,
         type: document.getElementById('addType').value,
         category: document.getElementById('addCategory').value,
         name: document.getElementById('addName').value.trim() || 'New Product',
@@ -1209,7 +1494,7 @@ async function saveNewProduct() {
             'PRODUCT',
             inserted ? String(inserted.id) : '',
             newProd.name,
-            `Added product "${newProd.name}" (${newProd.type}/${newProd.category}) at ${Number(newProd.price).toLocaleString()} MMK`,
+            `Added product "${newProd.name}"${newProd.sku ? ` [${newProd.sku}]` : ''} (${newProd.type}/${newProd.category}) at ${Number(newProd.price).toLocaleString()} MMK`,
             null,
             newProd
         );
@@ -1240,8 +1525,15 @@ async function saveEdit() {
     const newSnap = {};
 
     if (hasPerm('product.edit')) {
+        const newSku = document.getElementById('editSku').value.trim().toUpperCase() || null;
         const newName = document.getElementById('editName').value.trim();
         const newExp = document.getElementById('editExp').value.trim();
+        if (newSku !== (oldItem.sku || null)) {
+            updates.sku = newSku;
+            oldSnap.sku = oldItem.sku;
+            newSnap.sku = newSku;
+            diffs.push(`SKU: ${oldItem.sku || 'None'} → ${newSku || 'None'}`);
+        }
         if (newName && newName !== oldItem.name) {
             updates.name = newName;
             oldSnap.name = oldItem.name;
@@ -1293,7 +1585,7 @@ async function saveEdit() {
             updates.is_available = newAvail;
             oldSnap.is_available = oldAvail;
             newSnap.is_available = newAvail;
-            diffs.push(`Availability: ${oldAvail ? 'In Stock' : 'Out of Stock'} → ${newAvail ? 'In Stock' : 'Out of Stock'}`);
+            diffs.push(`Availability Override: ${oldAvail ? 'Auto' : 'Forced Out'} → ${newAvail ? 'Auto' : 'Forced Out'}`);
         }
     }
 
@@ -1316,7 +1608,6 @@ async function saveEdit() {
             return;
         }
 
-        // Determine primary granular action code
         let primaryAction = 'UPDATE_PRODUCT';
         if (Object.keys(updates).length === 1) {
             if ('price' in updates) primaryAction = 'CHANGE_PRICE';
@@ -1387,8 +1678,6 @@ async function fetchStaffUsers() {
     }
 
     staffUsersList = Array.isArray(data) ? data : [];
-    const activeCount = staffUsersList.filter(u => u.status === 'active').length;
-    document.getElementById('dashActiveStaff').innerText = activeCount;
 
     if (staffUsersList.length === 0) {
         tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;">No staff accounts found.</td></tr>';
@@ -1443,7 +1732,6 @@ function openUserFormModal(userId = null) {
     document.getElementById('formPassword').value = '';
 
     if (!userId) {
-        // Create mode
         document.getElementById('userFormTitle').innerText = 'Create Sales Team Account';
         document.getElementById('editUserId').value = '';
         document.getElementById('formUsername').value = '';
@@ -1454,11 +1742,9 @@ function openUserFormModal(userId = null) {
         document.getElementById('formStatus').value = 'active';
         document.getElementById('formPasswordLabel').innerText = 'Initial Password (Min 4 chars):';
         setAllPermissionCheckboxes(false);
-        // Default product.view checked for new Sales Team member
         const viewCb = document.querySelector('#permCheckboxGrid input[value="product.view"]');
         if (viewCb) viewCb.checked = true;
     } else {
-        // Edit mode
         const u = staffUsersList.find(item => item.id === userId);
         if (!u) return;
 
@@ -1478,7 +1764,6 @@ function openUserFormModal(userId = null) {
         });
     }
 
-    // Only Super Admin can assign ADMIN role
     const adminOption = document.querySelector('#formRole option[value="ADMIN"]');
     if (adminOption) {
         adminOption.disabled = !(currentStaffUser && currentStaffUser.role === 'SUPER_ADMIN');
@@ -1549,13 +1834,85 @@ async function saveStaffUser() {
 
 function viewUserActivityLogs(username) {
     switchStaffView('logs');
+    switchLogSubTab('staff');
     document.getElementById('logSearchUser').value = username;
     fetchAuditLogs();
 }
 
 // ==========================================
-// 10. ACTIVITY AUDIT LOGS & DETAIL VIEWER
+// 10. ACTIVITY AUDIT LOGS & GOOGLE SHEET SYNC LOGS
 // ==========================================
+function switchLogSubTab(subTab) {
+    activeLogSubTab = subTab;
+    const staffBtn = document.getElementById('subTabStaffLogsBtn');
+    const syncBtn = document.getElementById('subTabSyncLogsBtn');
+
+    if (subTab === 'staff') {
+        staffBtn.style.background = '#ff758c';
+        staffBtn.style.color = '#fff';
+        syncBtn.style.background = '#e9ecef';
+        syncBtn.style.color = '#333';
+        document.getElementById('staffActivityLogsSubPanel').classList.remove('hidden');
+        document.getElementById('stockSyncLogsSubPanel').classList.add('hidden');
+        fetchAuditLogs();
+    } else {
+        syncBtn.style.background = '#ff758c';
+        syncBtn.style.color = '#fff';
+        staffBtn.style.background = '#e9ecef';
+        staffBtn.style.color = '#333';
+        document.getElementById('staffActivityLogsSubPanel').classList.add('hidden');
+        document.getElementById('stockSyncLogsSubPanel').classList.remove('hidden');
+        fetchStockSyncLogs();
+    }
+}
+
+function refreshCurrentLogTab() {
+    if (activeLogSubTab === 'sync') fetchStockSyncLogs();
+    else fetchAuditLogs();
+}
+
+async function fetchStockSyncLogs() {
+    if (!hasPerm('logs.view') || useLocalFallback || !supabaseClient) return;
+    const tbody = document.getElementById('stockSyncLogsTableBody');
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">Loading stock synchronization logs...</td></tr>';
+
+    const { data, error } = await supabaseClient
+        .from('stock_sync_logs')
+        .select('*')
+        .order('id', { ascending: false })
+        .limit(200);
+
+    if (error) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:#ff4757;">Error: ${escapeHtml(error.message)}</td></tr>`;
+        return;
+    }
+
+    stockSyncLogsList = data || [];
+    if (stockSyncLogsList.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#777;">No Google Sheet synchronization logs recorded yet.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = stockSyncLogsList.map(log => {
+        const dtStr = new Date(log.synced_at).toLocaleString();
+        const color = log.status === 'SUCCESS' ? '#2ed573' : (log.status === 'PARTIAL' ? '#ffa502' : '#ff4757');
+        const mismatchInfo = Array.isArray(log.mismatch_details) && log.mismatch_details.length > 0
+            ? `<br><small style="color:#666;">${escapeHtml(log.mismatch_details.join(' | '))}</small>`
+            : '';
+        return `
+            <tr>
+                <td style="white-space:nowrap;">${dtStr}</td>
+                <td><strong style="color:${color};">${escapeHtml(log.status)}</strong></td>
+                <td>${log.products_received}</td>
+                <td>${log.products_updated}</td>
+                <td>${log.mismatch_count}</td>
+                <td>${log.error_count}</td>
+                <td>${escapeHtml(log.error_message || 'All matched cleanly')}${mismatchInfo}</td>
+            </tr>
+        `;
+    }).join('');
+}
+
 async function writeAuditLog(action, entityType, entityId, entityName, description, oldVal = null, newVal = null, result = 'Success') {
     if (useLocalFallback || !supabaseClient || !staffSessionToken) return;
     try {
@@ -1593,7 +1950,6 @@ async function fetchAuditLogs() {
 
     auditLogsList = data || [];
 
-    // Populate user filter dropdown dynamically
     const userSelect = document.getElementById('logFilterUserSelect');
     const prevSelected = userSelect.value;
     const uniqueUsers = [...new Set(auditLogsList.map(l => l.username).filter(Boolean))];
@@ -1636,7 +1992,7 @@ function renderAuditLogs() {
     if (fDate) {
         filtered = filtered.filter(l => {
             if (!l.created_at) return false;
-            const localDate = new Date(l.created_at).toLocaleDateString('en-CA'); // YYYY-MM-DD
+            const localDate = new Date(l.created_at).toLocaleDateString('en-CA');
             return localDate === fDate;
         });
     }
@@ -1711,7 +2067,7 @@ function escapeHtml(str) {
 }
 
 // ==========================================
-// 11. ABOUT & CONTACT EDITORS (Permission-gated + Audited)
+// 11. ABOUT & CONTACT EDITORS
 // ==========================================
 function openAboutEdit() {
     if (!hasPerm('settings.edit')) {
