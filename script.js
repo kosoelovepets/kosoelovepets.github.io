@@ -1,7 +1,7 @@
 // ==========================================
 // 1. SUPABASE CONFIGURATION (Backend Sync + Staff Token Header)
 // ==========================================
-const APP_VERSION = 'v7.5.3';
+const APP_VERSION = 'v7.5.4';
 const SUPABASE_URL = 'https://moggsrqzhygvavsdcanh.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1vZ2dzcnF6aHlndmF2c2RjYW5oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ0NzE0NzYsImV4cCI6MjExMDA0NzQ3Nn0.l8Et78xU1eo6f7UND-0ONHPPJfM_oJ-qEMyKUAZoPIU';
 
@@ -347,8 +347,7 @@ async function triggerGoogleSheetSyncNow(isManual = false) {
             const errDetail = (data && data.error) ? data.error : (error ? error.message : 'Sync failed');
             lastStockSyncError = errDetail;
             updateStockWarningBanner();
-            if (isManual) alert("Stock sync warning: " + errDetail + "
-Showing last synchronized data.");
+            if (isManual) alert("Stock sync warning: " + errDetail + "\nShowing last synchronized data.");
         } else {
             lastStockSyncError = null;
             updateStockWarningBanner();
@@ -876,13 +875,8 @@ async function verifyServerCartStock() {
             return true; // Fail open safely if RPC not yet migrated
         }
         if (data && data.valid === false) {
-            const errList = Array.isArray(data.errors) ? data.errors.join('
-• ') : 'Insufficient stock.';
-            alert("Stock availability changed:
-
-• " + errList + "
-
-Please adjust quantities in your cart.");
+            const errList = Array.isArray(data.errors) ? data.errors.join('\n• ') : 'Insufficient stock.';
+            alert("Stock availability changed:\n\n• " + errList + "\n\nPlease adjust quantities in your cart.");
             await fetchCachedProductStock();
             return false;
         }
