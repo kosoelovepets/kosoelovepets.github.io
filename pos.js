@@ -327,7 +327,17 @@ async function posLogout() {
 
 async function activatePosWorkspace() {
     if (!hasPosPerm('pos.sell') && !hasPosPerm('pos.restock')) {
-        document.getElementById('posLoginError').innerText = 'Your account does not have POS access permissions.';
+        if (staffToken) {
+            try { await supabaseClient.rpc('rpc_staff_logout', { p_user_agent: navigator.userAgent }); } catch (_) {}
+        }
+        staffToken = '';
+        localStorage.removeItem('kosoepets_staff_token_v75');
+        currentUser = null;
+        userPermissions = {};
+        initSupabase();
+        document.getElementById('posLoginError').innerHTML = currentPosLang === 'mm'
+            ? 'ဤအကောင့်တွင် POS အသုံးပြုခွင့် (pos.sell / pos.restock) မပါဝင်ပါ။ <a href="index.html" style="color:#4f46e5;text-decoration:underline;">ပင်မစာမျက်နှာ (Storefront) သို့သွားရန်</a>'
+            : 'This account has Storefront-only permissions (no POS access). <a href="index.html" style="color:#4f46e5;text-decoration:underline;">Go to Main Website</a>';
         return;
     }
 
