@@ -1,7 +1,7 @@
 // ==========================================
 // 1. SUPABASE CONFIGURATION (Backend Sync + Staff Token Header)
 // ==========================================
-const APP_VERSION = 'v7.5.4';
+const APP_VERSION = 'v8.0';
 const SUPABASE_URL = 'https://moggsrqzhygvavsdcanh.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1vZ2dzcnF6aHlndmF2c2RjYW5oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ0NzE0NzYsImV4cCI6MjExMDA0NzQ3Nn0.l8Et78xU1eo6f7UND-0ONHPPJfM_oJ-qEMyKUAZoPIU';
 
@@ -114,7 +114,8 @@ let activeLogSubTab = 'staff';
 const ALL_PERMISSION_CODES = [
     'product.view', 'product.add', 'product.edit', 'product.price_edit',
     'product.specs_edit', 'product.image_edit', 'product.availability_edit',
-    'product.delete', 'logs.view', 'settings.edit', 'users.manage'
+    'product.delete', 'logs.view', 'settings.edit', 'users.manage',
+    'pos.sell', 'pos.restock'
 ];
 
 function hasPerm(code) {
@@ -1262,6 +1263,8 @@ function applyStaffUIState() {
     document.getElementById('tabBtnUsers').classList.toggle('hidden', !hasPerm('users.manage'));
     document.getElementById('tabBtnLogs').classList.toggle('hidden', !hasPerm('logs.view'));
     document.getElementById('tabBtnSettings').classList.toggle('hidden', !hasPerm('settings.edit'));
+    const posNavBtn = document.getElementById('openPosTerminalBtn');
+    if (posNavBtn) posNavBtn.classList.toggle('hidden', !(hasPerm('pos.sell') || hasPerm('pos.restock')));
 
     updateStockWarningBanner();
 
