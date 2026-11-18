@@ -1,10 +1,12 @@
 // ==========================================
-// KO SOE LOVE PETS v8.0 — POS TERMINAL ENGINE
+// KO SOE LOVE PETS v8.1 — POS TERMINAL ENGINE
+// Supports Pyidaungsu Myanmar Unicode + EN/MM Language Switcher
 // ==========================================
 const SUPABASE_URL = 'https://moggsrqzhygvavsdcanh.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1vZ2dzcnF6aHlndmF2c2RjYW5oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ0NzE0NzYsImV4cCI6MjExMDA0NzQ3Nn0.l8Et78xU1eo6f7UND-0ONHPPJfM_oJ-qEMyKUAZoPIU';
 
 let staffToken = localStorage.getItem('kosoepets_staff_token_v75') || '';
+let currentPosLang = localStorage.getItem('kosoepets_pos_lang') || 'en';
 let supabaseClient = null;
 let currentUser = null;
 let userPermissions = {};
@@ -16,6 +18,199 @@ let selectedCategory = 'ALL';
 let posCart = [];
 let salesHistory = [];
 let stockMovements = [];
+
+const posTranslations = {
+    en: {
+        pos_title: "Ko Soe Love Pets POS",
+        tab_register: "Register",
+        tab_restock: "Stock-In / Adjust",
+        tab_history: "Sales & Ledger",
+        btn_storefront: "Storefront",
+        btn_logout: "Logout",
+        login_heading: "POS Staff Sign In",
+        login_sub: "Sign in with your Ko Soe Love Pets Admin or Sales Team account.",
+        ph_username: "Username",
+        ph_password: "Password",
+        btn_open_pos: "Open POS Register",
+        ph_search: "Scan barcode or search SKU (P00001) / Product Name...",
+        cat_all: "All Items",
+        cat_cats: "Cats",
+        cat_dogs: "Dogs",
+        cat_acc: "Accessories",
+        current_receipt: "Current Receipt",
+        btn_clear: "Clear",
+        empty_cart: "Select items or scan SKU to start sale",
+        lbl_channel: "Order Channel",
+        opt_instore: "In-Store Walk-in",
+        opt_viber: "Viber Paid Order",
+        lbl_payment: "Payment Method",
+        pay_cash: "Cash (MMK)",
+        pay_bank: "Bank Transfer",
+        lbl_discount: "Discount (MMK)",
+        lbl_cash_received: "Cash Received (MMK)",
+        ph_exact_cash: "Leave blank for exact",
+        lbl_tx_ref: "Transfer Ref / Last 6 Digits",
+        ph_cust_note: "Optional customer name / phone / delivery note...",
+        lbl_subtotal: "Subtotal:",
+        lbl_discount_line: "Discount:",
+        lbl_grand_total: "Grand Total:",
+        lbl_change: "Change Due:",
+        btn_complete_sale: "Complete Sale & Print Receipt",
+        restock_heading: "Inventory Stock-In & Count Adjustment",
+        restock_sub: "Updates live website stock immediately and logs every change in the audit ledger.",
+        btn_export_stock: "Export Current Stock (CSV)",
+        th_product: "Product Name",
+        th_category: "Category",
+        th_price: "Price",
+        th_stock: "Current Stock",
+        th_status: "Status",
+        th_action: "Action",
+        kpi_sales: "Today's Completed Sales",
+        kpi_rev: "Today's Revenue (MMK)",
+        kpi_split: "In-Store vs. Viber Paid",
+        kpi_low: "Low Stock Items",
+        receipts_heading: "POS Receipts",
+        btn_all_dates: "All Dates",
+        btn_export_sales: "Export Sales Report (CSV)",
+        th_receipt: "Receipt #",
+        th_datetime: "Date / Time",
+        th_channel: "Channel",
+        th_payment: "Payment",
+        th_total: "Grand Total",
+        th_cashier: "Cashier",
+        ledger_heading: "Stock Movement Ledger (Last 100 Movements)",
+        th_time: "Time",
+        th_type: "Type",
+        th_change: "Change",
+        th_before_after: "Before → After",
+        th_note: "Ref / Note",
+        th_staff: "Staff",
+        modal_restock_title: "Update Stock",
+        lbl_update_mode: "Update Mode",
+        opt_add_stock: "Add Incoming Stock (+ Qty)",
+        opt_set_stock: "Set Exact Physical Count (= Qty)",
+        lbl_qty: "Quantity",
+        lbl_reason: "Reason / Supplier Note",
+        ph_restock_note: "e.g. New shipment from supplier",
+        btn_save_stock: "Save Stock Update",
+        badge_in: "In Stock",
+        badge_low: "Low Stock",
+        badge_out: "Out of Stock",
+        btn_stock_in: "Stock-In / Adjust",
+        btn_print: "Print",
+        btn_void: "Void"
+    },
+    mm: {
+        pos_title: "ကိုစိုး Love Pets POS စနစ်",
+        tab_register: "အရောင်းကောင်တာ",
+        tab_restock: "ပစ္စည်းအဝင် / လက်ကျန်ပြင်ရန်",
+        tab_history: "အရောင်းမှတ်တမ်း",
+        btn_storefront: "ဆိုင်စာမျက်နှာ",
+        btn_logout: "ထွက်ရန်",
+        login_heading: "POS ဝန်ထမ်းအကောင့်ဝင်ရန်",
+        login_sub: "Admin သို့မဟုတ် Sales Team အကောင့်ဖြင့် ဝင်ရောက်ပါ။",
+        ph_username: "အသုံးပြုသူအမည် (Username)",
+        ph_password: "စကားဝှက် (Password)",
+        btn_open_pos: "POS စနစ်ဖွင့်မည်",
+        ph_search: "SKU ကုဒ် (P00001) သို့မဟုတ် ပစ္စည်းအမည် ရိုက်ရှာပါ...",
+        cat_all: "ပစ္စည်းအားလုံး",
+        cat_cats: "ကြောင်ပစ္စည်း",
+        cat_dogs: "ခွေးပစ္စည်း",
+        cat_acc: "အသုံးအဆောင်",
+        current_receipt: "လက်ရှိဘောက်ချာ",
+        btn_clear: "ရှင်းလင်းမည်",
+        empty_cart: "အရောင်းစတင်ရန် ပစ္စည်းရွေးချယ်ပါ သို့မဟုတ် SKU ရိုက်ထည့်ပါ",
+        lbl_channel: "အရောင်းအမျိုးအစား",
+        opt_instore: "ဆိုင်လာဝယ် (In-Store)",
+        opt_viber: "Viber ငွေရှင်းပြီးအော်ဒါ",
+        lbl_payment: "ငွေပေးချေမှုပုံစံ",
+        pay_cash: "ငွေသား (Cash)",
+        pay_bank: "ဘဏ်လွှဲ (Bank Transfer)",
+        lbl_discount: "လျှော့စျေး (MMK)",
+        lbl_cash_received: "လက်ခံရရှိငွေ (MMK)",
+        ph_exact_cash: "အတိအကျဆိုလျှင် ဗလာထားပါ",
+        lbl_tx_ref: "ငွေလွှဲပြေစာနံပါတ်",
+        ph_cust_note: "ဝယ်သူအမည် / ဖုန်းနံပါတ် / မှတ်ချက်...",
+        lbl_subtotal: "စုစုပေါင်း:",
+        lbl_discount_line: "လျှော့စျေး:",
+        lbl_grand_total: "ကျသင့်ငွေ:",
+        lbl_change: "ပြန်အမ်းငွေ:",
+        btn_complete_sale: "အရောင်းအတည်ပြုပြီး ဘောက်ချာထုတ်မည်",
+        restock_heading: "ပစ္စည်းအဝင်ထည့်သွင်းခြင်းနှင့် လက်ကျန်ပြင်ဆင်ခြင်း",
+        restock_sub: "ပြင်ဆင်လိုက်သည်နှင့် Website ပေါ်ရှိ လက်ကျန်စာရင်း ချက်ချင်းပြောင်းလဲပါမည်။",
+        btn_export_stock: "လက်ကျန်စာရင်း (CSV) ထုတ်ယူရန်",
+        th_product: "ပစ္စည်းအမည်",
+        th_category: "အမျိုးအစား",
+        th_price: "စျေးနှုန်း",
+        th_stock: "လက်ကျန်အရေအတွက်",
+        th_status: "အခြေအနေ",
+        th_action: "လုပ်ဆောင်ချက်",
+        kpi_sales: "ယနေ့အရောင်းအရေအတွက်",
+        kpi_rev: "ယနေ့ရောင်းရငွေ (MMK)",
+        kpi_split: "ဆိုင်ဝယ် / Viber အော်ဒါ",
+        kpi_low: "လက်ကျန်နည်းပစ္စည်း",
+        receipts_heading: "အရောင်းဘောက်ချာများ",
+        btn_all_dates: "ရက်စွဲအားလုံး",
+        btn_export_sales: "အရောင်းစာရင်း (CSV) ထုတ်ယူရန်",
+        th_receipt: "ဘောက်ချာနံပါတ်",
+        th_datetime: "ရက်စွဲ / အချိန်",
+        th_channel: "အရောင်းလမ်းကြောင်း",
+        th_payment: "ငွေချေစနစ်",
+        th_total: "စုစုပေါင်းကျသင့်ငွေ",
+        th_cashier: "အရောင်းဝန်ထမ်း",
+        ledger_heading: "ပစ္စည်းအဝင်/အထွက် မှတ်တမ်း (နောက်ဆုံး ၁၀၀)",
+        th_time: "အချိန်",
+        th_type: "အမျိုးအစား",
+        th_change: "အပြောင်းအလဲ",
+        th_before_after: "ယခင် → ယခု",
+        th_note: "မှတ်ချက်",
+        th_staff: "ဝန်ထမ်း",
+        modal_restock_title: "လက်ကျန်အရေအတွက် ပြင်ဆင်ရန်",
+        lbl_update_mode: "ပြင်ဆင်မည့်ပုံစံ",
+        opt_add_stock: "ပစ္စည်းအသစ်ထပ်ပေါင်းမည် (+ Qty)",
+        opt_set_stock: "လက်ရှိအရေအတွက် အတိအကျသတ်မှတ်မည် (= Qty)",
+        lbl_qty: "အရေအတွက်",
+        lbl_reason: "အကြောင်းအရင်း / မှတ်ချက်",
+        ph_restock_note: "ဥပမာ - ပစ္စည်းအသစ်ရောက်ရှိ",
+        btn_save_stock: "သိမ်းဆည်းမည်",
+        badge_in: "ပစ္စည်းရှိသည်",
+        badge_low: "လက်ကျန်နည်း",
+        badge_out: "ပစ္စည်းပြတ်",
+        btn_stock_in: "အဝင်ထည့် / ပြင်ရန်",
+        btn_print: "Print ထုတ်ရန်",
+        btn_void: "ပယ်ဖျက်ရန်"
+    }
+};
+
+function tPos(key) {
+    return (posTranslations[currentPosLang] && posTranslations[currentPosLang][key]) || posTranslations.en[key] || key;
+}
+
+function switchPosLanguage() {
+    const sel = document.getElementById('posLangSelect');
+    if (sel) currentPosLang = sel.value;
+    localStorage.setItem('kosoepets_pos_lang', currentPosLang);
+
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if (posTranslations[currentPosLang][key]) {
+            el.innerText = posTranslations[currentPosLang][key];
+        }
+    });
+    document.querySelectorAll('[data-i18n-ph]').forEach(el => {
+        const key = el.getAttribute('data-i18n-ph');
+        if (posTranslations[currentPosLang][key]) {
+            el.placeholder = posTranslations[currentPosLang][key];
+        }
+    });
+
+    renderPosCatalog();
+    renderPosCart();
+    renderRestockTable();
+    if (!document.getElementById('posHistoryView').classList.contains('hidden')) {
+        fetchPosSalesHistory();
+    }
+}
 
 function initSupabase() {
     const headers = staffToken ? { 'x-staff-token': staffToken } : {};
@@ -53,6 +248,10 @@ function hasPosPerm(code) {
 // 1. AUTHENTICATION (Shares Storefront Session)
 // ==========================================
 document.addEventListener('DOMContentLoaded', async () => {
+    const langSel = document.getElementById('posLangSelect');
+    if (langSel) langSel.value = currentPosLang;
+    switchPosLanguage();
+
     document.getElementById('posSearchInput').addEventListener('input', renderPosCatalog);
     document.getElementById('posSearchInput').addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
@@ -80,7 +279,7 @@ async function posLogin() {
     const btn = document.getElementById('posLoginSubmitBtn');
 
     if (!username || !password) {
-        errEl.innerText = 'Please enter username and password.';
+        errEl.innerText = currentPosLang === 'mm' ? 'အသုံးပြုသူအမည်နှင့် စကားဝှက် ထည့်သွင်းပါ။' : 'Please enter username and password.';
         return;
     }
 
@@ -233,6 +432,7 @@ function setPosCategory(cat, btnEl) {
 
 function renderPosCatalog() {
     const grid = document.getElementById('posProductGrid');
+    if (!grid) return;
     const q = document.getElementById('posSearchInput').value.toLowerCase().trim();
 
     let list = products.filter(p => {
@@ -246,7 +446,7 @@ function renderPosCatalog() {
     });
 
     if (list.length === 0) {
-        grid.innerHTML = '<p style="grid-column:1/-1; text-align:center; color:#64748b; padding:30px;">No matching products found.</p>';
+        grid.innerHTML = `<p style="grid-column:1/-1; text-align:center; color:#64748b; padding:30px;">${currentPosLang === 'mm' ? 'ကိုက်ညီသော ပစ္စည်းမတွေ့ပါ။' : 'No matching products found.'}</p>`;
         return;
     }
 
@@ -254,7 +454,9 @@ function renderPosCatalog() {
         const st = getStockForProduct(p);
         const disabled = st.status === 'OUT_OF_STOCK' || !p.sku;
         const badgeClass = st.status === 'IN_STOCK' ? 'in' : (st.status === 'LOW_STOCK' ? 'low' : 'out');
-        const badgeText = st.status === 'OUT_OF_STOCK' ? 'Out (0)' : `Stock: ${st.qty}`;
+        const badgeText = st.status === 'OUT_OF_STOCK'
+            ? (currentPosLang === 'mm' ? 'ပြတ် (0)' : 'Out (0)')
+            : (currentPosLang === 'mm' ? `ကျန်: ${st.qty}` : `Stock: ${st.qty}`);
 
         return `
             <div class="pos-item-tile ${disabled ? 'disabled' : ''}" onclick="${disabled ? '' : `addPosCartItem(${p.id})`}">
@@ -294,7 +496,7 @@ function addPosCartItem(productId) {
 
     const st = getStockForProduct(prod);
     if (st.status === 'OUT_OF_STOCK') {
-        alert(`${prod.name} is Out of Stock.`);
+        alert(currentPosLang === 'mm' ? `${prod.name} ပစ္စည်းပြတ်နေပါသည်။` : `${prod.name} is Out of Stock.`);
         return;
     }
 
@@ -302,7 +504,9 @@ function addPosCartItem(productId) {
     const currentQty = existing ? existing.qty : 0;
 
     if (currentQty + 1 > st.qty) {
-        alert(`Only ${st.qty} units available for ${prod.name} (${prod.sku}).`);
+        alert(currentPosLang === 'mm'
+            ? `${prod.name} (${prod.sku}) လက်ကျန် ${st.qty} ခုသာ ရှိပါသည်။`
+            : `Only ${st.qty} units available for ${prod.name} (${prod.sku}).`);
         return;
     }
 
@@ -328,7 +532,7 @@ function changePosCartQty(productId, delta) {
         const prod = products.find(p => Number(p.id) === Number(productId));
         const st = prod ? getStockForProduct(prod) : { qty: item.qty };
         if (item.qty + delta > st.qty) {
-            alert(`Maximum stock available is ${st.qty}.`);
+            alert(currentPosLang === 'mm' ? `အများဆုံးလက်ကျန် ${st.qty} ခုသာ ရှိပါသည်။` : `Maximum stock available is ${st.qty}.`);
             return;
         }
     }
@@ -360,8 +564,9 @@ function toggleCashTenderedField() {
 
 function renderPosCart() {
     const listEl = document.getElementById('posCartList');
+    if (!listEl) return;
     if (posCart.length === 0) {
-        listEl.innerHTML = '<p style="text-align:center; color:#64748b; padding:35px 0; font-weight:600;">Select items or scan SKU to start sale</p>';
+        listEl.innerHTML = `<p style="text-align:center; color:#64748b; padding:35px 0; font-weight:600;">${tPos('empty_cart')}</p>`;
         recalcPosTotals();
         return;
     }
@@ -404,7 +609,7 @@ function recalcPosTotals() {
 
 async function completePosSale() {
     if (posCart.length === 0) {
-        alert('POS cart is empty.');
+        alert(currentPosLang === 'mm' ? 'ဘောက်ချာထဲတွင် ပစ္စည်းမရှိသေးပါ။' : 'POS cart is empty.');
         return;
     }
 
@@ -414,7 +619,8 @@ async function completePosSale() {
     const customerNote = document.getElementById('posCustomerNote').value.trim();
     const discount = Math.max(0, parseInt(document.getElementById('posDiscountInput').value) || 0);
     const cashRaw = document.getElementById('posCashTendered').value.trim();
-    const cashTendered = (paymentMethod === 'CASH' && cashRaw !== '') ? parseInt(cashRaw) : null;
+    // Blank or 0 means exact cash received
+    const cashTendered = (paymentMethod === 'CASH' && cashRaw !== '' && parseInt(cashRaw) > 0) ? parseInt(cashRaw) : null;
 
     const btn = document.getElementById('posCompleteSaleBtn');
     btn.disabled = true;
@@ -470,7 +676,7 @@ async function completePosSale() {
 }
 
 // ==========================================
-// 5. THERMAL 80MM / A5 PRINTABLE RECEIPT
+// 5. THERMAL 80MM / A5 PRINTABLE RECEIPT (WITH PYIDAUNGSU FONT)
 // ==========================================
 function printPosReceipt(sale) {
     const win = window.open('', '_blank', 'width=440,height=760');
@@ -499,7 +705,11 @@ function printPosReceipt(sale) {
             <meta charset="UTF-8">
             <title>${escapeHtml(sale.receipt_no)}</title>
             <style>
-                body { font-family: 'Courier New', monospace; width: 300px; margin: 0 auto; padding: 14px; color: #111; font-size: 13px; }
+                @font-face {
+                    font-family: 'Pyidaungsu';
+                    src: local('Pyidaungsu'), url('https://cdn.jsdelivr.net/gh/mgyway/pyidaungsu-font@master/Pyidaungsu-2.5.3_Regular.ttf') format('truetype');
+                }
+                body { font-family: 'Pyidaungsu', 'Courier New', monospace; width: 300px; margin: 0 auto; padding: 14px; color: #111; font-size: 13px; line-height: 1.5; }
                 .center { text-align: center; }
                 .divider { border-top: 1px dashed #333; margin: 8px 0; }
                 table { width: 100%; border-collapse: collapse; }
@@ -538,7 +748,7 @@ function printPosReceipt(sale) {
                 Thank you for shopping with us!<br>
                 ဝယ်ယူအားပေးမှုအတွက် ကျေးဇူးတင်ပါသည်
             </div>
-            <script>window.onload = function() { setTimeout(function(){ window.print(); }, 300); };<\/script>
+            <script>window.onload = function() { setTimeout(function(){ window.print(); }, 350); };<\/script>
         </body>
         </html>
     `);
@@ -555,7 +765,7 @@ function renderRestockTable() {
     tbody.innerHTML = products.map(p => {
         const st = getStockForProduct(p);
         const badgeClass = st.status === 'IN_STOCK' ? 'in' : (st.status === 'LOW_STOCK' ? 'low' : 'out');
-        const label = st.status === 'IN_STOCK' ? 'In Stock' : (st.status === 'LOW_STOCK' ? 'Low Stock' : 'Out of Stock');
+        const label = st.status === 'IN_STOCK' ? tPos('badge_in') : (st.status === 'LOW_STOCK' ? tPos('badge_low') : tPos('badge_out'));
 
         return `
             <tr>
@@ -567,7 +777,7 @@ function renderRestockTable() {
                 <td><span class="stock-badge ${badgeClass}">${label}</span></td>
                 <td>
                     <button type="button" class="btn-sm primary" onclick="openRestockModal(${p.id})" ${!p.sku ? 'disabled' : ''}>
-                        <i class="fa fa-plus-circle"></i> Stock-In / Adjust
+                        <i class="fa fa-plus-circle"></i> ${tPos('btn_stock_in')}
                     </button>
                 </td>
             </tr>
@@ -581,7 +791,7 @@ function openRestockModal(productId) {
     const st = getStockForProduct(prod);
 
     document.getElementById('restockProductId').value = prod.id;
-    document.getElementById('restockProductLabel').innerText = `${prod.name} [${prod.sku}] — Current Stock: ${st.qty}`;
+    document.getElementById('restockProductLabel').innerText = `${prod.name} [${prod.sku}] — ${currentPosLang === 'mm' ? 'လက်ရှိလက်ကျန်' : 'Current Stock'}: ${st.qty}`;
     document.getElementById('restockMode').value = 'ADD';
     document.getElementById('restockQtyInput').value = 10;
     document.getElementById('restockNoteInput').value = '';
@@ -690,7 +900,7 @@ async function fetchPosSalesHistory() {
         const dt = new Date(s.created_at).toLocaleString();
         const isVoid = s.status === 'VOIDED';
         const voidBtn = (isAdmin && !isVoid)
-            ? `<button type="button" class="btn-sm danger" onclick="voidPosReceipt(${s.id}, '${escapeHtml(s.receipt_no)}')">Void</button>`
+            ? `<button type="button" class="btn-sm danger" onclick="voidPosReceipt(${s.id}, '${escapeHtml(s.receipt_no)}')">${tPos('btn_void')}</button>`
             : '';
 
         return `
@@ -703,7 +913,7 @@ async function fetchPosSalesHistory() {
                 <td>${escapeHtml(s.cashier_name)}</td>
                 <td><strong style="color:${isVoid ? '#dc2626' : '#16a34a'};">${escapeHtml(s.status)}</strong></td>
                 <td style="display:flex; gap:6px;">
-                    <button type="button" class="btn-sm" onclick="reprintSaleById(${s.id})"><i class="fa fa-print"></i> Print</button>
+                    <button type="button" class="btn-sm" onclick="reprintSaleById(${s.id})"><i class="fa fa-print"></i> ${tPos('btn_print')}</button>
                     ${voidBtn}
                 </td>
             </tr>
@@ -778,8 +988,7 @@ async function fetchStockMovements() {
 }
 
 function downloadCsvFile(filename, rows) {
-    const csvContent = '﻿' + rows.map(r => r.map(cell => `"${String(cell ?? '').replace(/"/g, '""')}"`).join(',')).join('
-');
+    const csvContent = '\ufeff' + rows.map(r => r.map(cell => `"${String(cell ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');

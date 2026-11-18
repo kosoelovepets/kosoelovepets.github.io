@@ -1,7 +1,7 @@
 // ==========================================
 // 1. SUPABASE CONFIGURATION (Backend Sync + Staff Token Header)
 // ==========================================
-const APP_VERSION = 'v8.0';
+const APP_VERSION = 'v8.1';
 const SUPABASE_URL = 'https://moggsrqzhygvavsdcanh.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1vZ2dzcnF6aHlndmF2c2RjYW5oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ0NzE0NzYsImV4cCI6MjExMDA0NzQ3Nn0.l8Et78xU1eo6f7UND-0ONHPPJfM_oJ-qEMyKUAZoPIU';
 
