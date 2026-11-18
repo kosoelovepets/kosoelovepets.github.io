@@ -1220,7 +1220,7 @@ async function login() {
         rebuildSupabaseClient();
 
         closeModal('loginModal');
-        applyStaffUIState();
+        ();
         showToast(`Welcome, ${currentStaffUser.display_name}!`);
     } catch (e) {
         errEl.innerText = 'Unexpected login error: ' + e.message;
@@ -1243,7 +1243,27 @@ async function logout() {
     rebuildSupabaseClient();
     applyStaffUIState();
 }
-
+// ==========================================
+// STOREFRONT 90-SECOND SESSION HEARTBEAT
+// ==========================================
+let storefrontHeartbeatTimer = null;
+function startStorefrontSessionHeartbeat() {
+    clearInterval(storefrontHeartbeatTimer);
+    storefrontHeartbeatTimer = setInterval(async () => {
+        if (!staffSessionToken || document.hidden) return;
+        const { data, error } = await supabaseClient.rpc('rpc_validate_session');
+        if (error || !data || !data.valid) {
+            clearInterval(storefrontHeartbeatTimer);
+            staffSessionToken = '';
+            localStorage.removeItem('kosoepets_staff_token_v75');
+            currentStaffUser = null;
+            currentPermissions = {};
+            rebuildSupabaseClient();
+            applyStaffUIState();
+            alert('Session expired after 90 seconds of inactivity. Please log in again.');
+        }
+    }, 30000);
+}
 function applyStaffUIState() {
     const loggedIn = Boolean(currentStaffUser);
 
@@ -1256,6 +1276,7 @@ function applyStaffUIState() {
     if (loggedIn) {
         badge.classList.remove('hidden');
         badge.innerHTML = `<i class="fa fa-user-shield"></i> ${escapeHtml(currentStaffUser.display_name)} (${currentStaffUser.role.replace('_', ' ')})`;
+        startStorefrontSessionHeartbeat(); // <--- Heartbeat session auto logout 90 sec
     } else {
         badge.classList.add('hidden');
         badge.innerHTML = '';
