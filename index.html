@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ko Soe Love Pets - v8.4</title>
+    <title>Ko Soe Love Pets - v8.5</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
     <!-- Supabase CDN -->
@@ -30,7 +30,7 @@
     <header>
         <div class="header-top">
             <div class="logo-container">
-                <h1><span style="color:#ff758c;">●</span> Ko Soe <span style="color:#ff9a9e;">Love Pets</span> <small class="version-badge">v8.4</small></h1>
+                <h1><span style="color:#ff758c;">●</span> Ko Soe <span style="color:#ff9a9e;">Love Pets</span> <small class="version-badge">v8.5</small></h1>
             </div>
             <div class="header-controls">
                 <input type="text" id="searchInput" placeholder="Search products...">
@@ -188,6 +188,8 @@
                     <button type="button" class="mini-btn" id="subTabStaffLogsBtn" onclick="switchLogSubTab('staff')" style="background:#ff758c;color:#fff;">Staff Activity Logs</button>
                     <button type="button" class="mini-btn" id="subTabSyncLogsBtn" onclick="switchLogSubTab('sync')">Google Sheet Sync Logs</button>
                     <button type="button" class="refresh-btn" onclick="refreshCurrentLogTab()"><i class="fa fa-sync-alt"></i> Refresh</button>
+                    <button type="button" class="delete-btn" id="cleanOldLogsBtn" onclick="cleanSystemLogs('ACTIVITY_OLD')" style="padding:10px 14px; border-radius:8px;"><i class="fa fa-broom"></i> Clean Logs (&gt;30d)</button>
+                    <button type="button" class="delete-btn" id="cleanAllLogsBtn" onclick="cleanSystemLogs('CURRENT_ALL')" style="padding:10px 14px; border-radius:8px; background:#b91c1c;"><i class="fa fa-trash-alt"></i> Clear All Logs</button>
                 </div>
             </div>
 
@@ -524,6 +526,8 @@
                     <label class="perm-item"><input type="checkbox" value="logs.view"> View Activity Logs (<code>logs.view</code>)</label>
                     <label class="perm-item"><input type="checkbox" value="settings.edit"> Edit Banner/Footer (<code>settings.edit</code>)</label>
                     <label class="perm-item"><input type="checkbox" value="users.manage"> Manage Sales Users (<code>users.manage</code>)</label>
+                    <label class="perm-item"><input type="checkbox" value="pos.sell" checked> POS Cashier / Sell (<code>pos.sell</code>)</label>
+                    <label class="perm-item"><input type="checkbox" value="pos.restock" checked> POS Stock-In / Adjust (<code>pos.restock</code>)</label>
                 </div>
             </div>
 

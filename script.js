@@ -1,7 +1,7 @@
 // ==========================================
 // 1. SUPABASE CONFIGURATION (Backend Sync + Staff Token Header)
 // ==========================================
-const APP_VERSION = 'v8.4';
+const APP_VERSION = 'v8.5';
 const SUPABASE_URL = 'https://moggsrqzhygvavsdcanh.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1vZ2dzcnF6aHlndmF2c2RjYW5oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ0NzE0NzYsImV4cCI6MjExMDA0NzQ3Nn0.l8Et78xU1eo6f7UND-0ONHPPJfM_oJ-qEMyKUAZoPIU';
 
@@ -1703,6 +1703,10 @@ async function fetchStaffUsers() {
             ? `<button type="button" class="mini-btn" style="background:#fff3cd;color:#856404;" onclick="forceUnlockStaffSession('${u.id}', '${escapeHtml(u.username)}')" title="Force logout this user from any active device"><i class="fa fa-unlock"></i> Unlock</button>`
             : '';
 
+        const deleteUserButton = (!isSuper && !isSelf)
+            ? `<button type="button" class="delete-btn" onclick="deleteStaffUser('${u.id}', '${escapeHtml(u.username)}')" title="Delete user account (keeps all historical logs)"><i class="fa fa-trash"></i> Del</button>`
+            : '';
+
         const logsButton = hasPerm('logs.view')
             ? `<button type="button" class="mini-btn" onclick="viewUserActivityLogs('${escapeHtml(u.username)}')"><i class="fa fa-list"></i> Logs</button>`
             : '';
@@ -1717,7 +1721,7 @@ async function fetchStaffUsers() {
                 <td><span class="status-${u.status}">${u.status.toUpperCase()}</span></td>
                 <td>${lastLogin}</td>
                 <td><small>C: ${createdStr}<br>U: ${updatedStr}</small></td>
-                <td style="display:flex;gap:6px;flex-wrap:wrap;">${editButton} ${unlockButton} ${logsButton}</td>
+                <td style="display:flex;gap:6px;flex-wrap:wrap;">${editButton} ${unlockButton} ${deleteUserButton} ${logsButton}</td>
             </tr>
         `;
     }).join('');
@@ -1749,8 +1753,10 @@ function openUserFormModal(userId = null) {
         document.getElementById('formStatus').value = 'active';
         document.getElementById('formPasswordLabel').innerText = 'Initial Password (Min 4 chars):';
         setAllPermissionCheckboxes(false);
-        const viewCb = document.querySelector('#permCheckboxGrid input[value="product.view"]');
-        if (viewCb) viewCb.checked = true;
+        ['product.view', 'pos.sell', 'pos.restock'].forEach(code => {
+            const cb = document.querySelector(`#permCheckboxGrid input[value="${code}"]`);
+            if (cb) cb.checked = true;
+        });
     } else {
         const u = staffUsersList.find(item => item.id === userId);
         if (!u) return;
@@ -1852,6 +1858,57 @@ async function forceUnlockStaffSession(userId, username) {
         return;
     }
     showToast(`Session unlocked for @${username}`);
+}
+
+
+async function deleteStaffUser(userId, username) {
+    if (!hasPerm('users.manage')) {
+        alert('Permission denied: Admin access required.');
+        return;
+    }
+    if (!confirm(`Delete user account "@${username}"?\n\nNote: All historical sales receipts, stock movements, and activity logs for @${username} will be preserved.`)) {
+        return;
+    }
+    const { data, error } = await supabaseClient.rpc('rpc_delete_staff_user', {
+        p_target_user_id: userId,
+        p_user_agent: navigator.userAgent
+    });
+    if (error || !data || !data.success) {
+        alert('Failed to delete user: ' + ((data && data.error) ? data.error : (error ? error.message : 'Error')));
+        return;
+    }
+    showToast(`Account @${username} deleted (logs preserved).`);
+    await fetchStaffUsers();
+}
+
+async function cleanSystemLogs(mode) {
+    if (!hasPerm('logs.view')) {
+        alert('Permission denied: Admin access required to clean logs.');
+        return;
+    }
+    let rpcMode = mode;
+    if (mode === 'CURRENT_ALL') {
+        rpcMode = activeLogSubTab === 'sync' ? 'SYNC_ALL' : 'ACTIVITY_ALL';
+    }
+    const label = rpcMode === 'ACTIVITY_OLD'
+        ? 'delete Staff Activity Logs older than 30 days'
+        : (rpcMode === 'SYNC_ALL' ? 'clear ALL Google Sheet Sync Logs' : 'clear ALL Staff Activity Logs');
+
+    if (!confirm(`Are you sure you want to ${label}? This action cannot be undone.`)) {
+        return;
+    }
+
+    const { data, error } = await supabaseClient.rpc('rpc_clear_system_logs', {
+        p_log_type: rpcMode,
+        p_older_than_days: 30,
+        p_user_agent: navigator.userAgent
+    });
+    if (error || !data || !data.success) {
+        alert('Log cleanup failed: ' + ((data && data.error) ? data.error : (error ? error.message : 'Error')));
+        return;
+    }
+    showToast(`Cleaned ${data.deleted_count || 0} log entries.`);
+    refreshCurrentLogTab();
 }
 
 function viewUserActivityLogs(username) {

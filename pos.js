@@ -1,5 +1,5 @@
 // ==========================================
-// KO SOE LOVE PETS v8.4 — POS TERMINAL ENGINE
+// KO SOE LOVE PETS v8.5 — POS TERMINAL ENGINE
 // Supports Pyidaungsu Myanmar Unicode + EN/MM Language Switcher
 // ==========================================
 const SUPABASE_URL = 'https://moggsrqzhygvavsdcanh.supabase.co';
