@@ -19,11 +19,6 @@
         <i class="fa fa-info-circle"></i> <span id="sysBannerText">Preview Mode: Supabase connection pending. Please configure your API keys in script.js.</span>
     </div>
 
-    <!-- Staff-Only Google Sheet Stock Sync Warning Banner -->
-    <div id="stockSyncWarningBanner" class="sys-banner hidden">
-        <i class="fa fa-exclamation-triangle"></i> <span id="stockSyncWarningText">Stock information could not be synchronized. Showing the last successfully synchronized data.</span>
-    </div>
-
     <!-- Notification Toast -->
     <div id="toastNotification" class="toast hidden">Successfully added to your cart!</div>
 
@@ -103,7 +98,6 @@
             <div class="panel-header">
                 <h2><i class="fa fa-chart-pie"></i> Staff Workspace & Live Stock Overview</h2>
                 <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-                    <button type="button" class="refresh-btn" id="triggerSheetSyncBtn" onclick="triggerGoogleSheetSyncNow(true)"><i class="fa fa-sync-alt"></i> Sync Google Sheet Stock</button>
                     <span id="dashboardRoleSummary" class="role-pill"></span>
                 </div>
             </div>
@@ -126,9 +120,9 @@
                 </div>
             </div>
 
-            <!-- Staff Product Stock Summary Table (Read-only from Google Sheets) -->
+            <!-- Staff Product Stock Summary Table (Read-only from POS Inventorys) -->
             <div class="table-responsive" style="margin-bottom:22px;">
-                <h3 style="font-size:18px;margin-bottom:10px;color:#333;">Live Product Stock Status (Source: Google Sheets)</h3>
+                <h3 style="font-size:18px;margin-bottom:10px;color:#333;">Live Product Stock Status (Source: POS Inventory)</h3>
                 <table class="staff-table">
                     <thead>
                         <tr>
@@ -180,16 +174,14 @@
             </div>
         </section>
 
-        <!-- ACTIVITY AUDIT LOG & STOCK SYNC LOG SECTION -->
+        <!-- ACTIVITY AUDIT LOG SECTION -->
         <section id="staffLogsSection" class="staff-panel hidden">
             <div class="panel-header">
-                <h2><i class="fa fa-history"></i> System Activity & Stock Sync Logs</h2>
+                <h2><i class="fa fa-history"></i> System Activity Logs</h2>
                 <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                    <button type="button" class="mini-btn" id="subTabStaffLogsBtn" onclick="switchLogSubTab('staff')" style="background:#ff758c;color:#fff;">Staff Activity Logs</button>
-                    <button type="button" class="mini-btn" id="subTabSyncLogsBtn" onclick="switchLogSubTab('sync')">Google Sheet Sync Logs</button>
                     <button type="button" class="refresh-btn" onclick="refreshCurrentLogTab()"><i class="fa fa-sync-alt"></i> Refresh</button>
                     <button type="button" class="delete-btn" id="cleanOldLogsBtn" onclick="cleanSystemLogs('ACTIVITY_OLD')" style="padding:10px 14px; border-radius:8px;"><i class="fa fa-broom"></i> Clean Logs (&gt;30d)</button>
-                    <button type="button" class="delete-btn" id="cleanAllLogsBtn" onclick="cleanSystemLogs('CURRENT_ALL')" style="padding:10px 14px; border-radius:8px; background:#b91c1c;"><i class="fa fa-trash-alt"></i> Clear All Logs</button>
+                    <button type="button" class="delete-btn" id="cleanAllLogsBtn" onclick="cleanSystemLogs('ACTIVITY_ALL')" style="padding:10px 14px; border-radius:8px; background:#b91c1c;"><i class="fa fa-trash-alt"></i> Clear All Logs</button>
                 </div>
             </div>
 
@@ -245,33 +237,12 @@
                 </div>
             </div>
 
-            <!-- Google Sheet Stock Sync Logs Sub-Panel -->
-            <div id="stockSyncLogsSubPanel" class="hidden">
-                <div class="table-responsive">
-                    <table class="staff-table">
-                        <thead>
-                            <tr>
-                                <th>Sync Time</th>
-                                <th>Status</th>
-                                <th>Rows Received</th>
-                                <th>Stock Values Changed</th>
-                                <th>Mismatches</th>
-                                <th>Errors</th>
-                                <th>Details / Error Message</th>
-                            </tr>
-                        </thead>
-                        <tbody id="stockSyncLogsTableBody">
-                            <tr><td colspan="7" style="text-align:center;">Loading stock synchronization logs...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
         </section>
 
         <!-- STORE SETTINGS SECTION -->
         <section id="staffSettingsSection" class="staff-panel hidden">
             <div class="panel-header">
-                <h2><i class="fa fa-sliders-h"></i> Storefront & Stock Sync Settings</h2>
+                <h2><i class="fa fa-sliders-h"></i> Storefront & POS Stock Threshold Settings</h2>
             </div>
             <div class="settings-quick-actions" style="margin-bottom:20px;">
                 <button type="button" class="edit-btn" onclick="openBannerEdit()"><i class="fa fa-images"></i> Edit Banner Slideshow</button>
@@ -279,7 +250,7 @@
                 <button type="button" class="edit-btn" onclick="openContactEdit()"><i class="fa fa-address-book"></i> Edit Contact Us</button>
             </div>
             <div class="perm-matrix-box" style="max-width:480px;">
-                <h3 style="font-size:18px;margin-bottom:10px;">Google Sheets Stock Thresholds</h3>
+                <h3 style="font-size:18px;margin-bottom:10px;">POS Stock Display Thresholds</h3>
                 <label>Low Stock Threshold (Qty &le; this shows Low Stock):</label>
                 <input type="number" id="settingLowThreshold" min="1" max="100" value="5" style="margin-bottom:10px;">
                 <label>Auto-Sync Interval (Seconds):</label>
@@ -365,7 +336,7 @@
                 <button type="button" class="close-btn" onclick="closeModal('addModal')" aria-label="Close">&times;</button>
             </div>
             <h2 data-i18n="add_new">Add New Product</h2>
-            <label>Product ID / SKU (Matches Google Sheet, e.g. P004):</label>
+            <label>Product ID / SKU (Matches POS SKU, e.g. P00012):</label>
             <input type="text" id="addSku" placeholder="e.g. P004">
             <label>Type:</label>
             <select id="addType"><option value="Cats">Cats</option><option value="Dogs">Dogs</option><option value="Accessories">Accessories</option></select>
@@ -386,7 +357,7 @@
             <input type="text" id="addExp" placeholder="YYYY-MM-DD or N/A">
             <label>Manual Availability Override:</label>
             <select id="addAvailability">
-                <option value="true">Available (Follow Google Sheet Stock)</option>
+                <option value="true">Available (Follow Live POS Stock)</option>
                 <option value="false">Force Out of Stock</option>
             </select>
             <label>Specs:</label>
@@ -404,7 +375,7 @@
             <h2>Edit Product</h2>
             <input type="hidden" id="editId">
             <div id="editDetailsGroup">
-                <label>Product ID / SKU (Matches Google Sheet, e.g. P001):</label>
+                <label>Product ID / SKU (Matches POS SKU, e.g. P00001):</label>
                 <input type="text" id="editSku" placeholder="e.g. P001">
                 <label>Product Name:</label>
                 <input type="text" id="editName">
@@ -425,7 +396,7 @@
             <div id="editAvailabilityGroup">
                 <label>Manual Availability Override:</label>
                 <select id="editAvailability">
-                    <option value="true">Available (Follow Google Sheet Stock)</option>
+                    <option value="true">Available (Follow Live POS Stock)</option>
                     <option value="false">Force Out of Stock</option>
                 </select>
             </div>

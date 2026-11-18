@@ -94,7 +94,7 @@ let products = [];
 let currentProducts = [];
 let cart = JSON.parse(localStorage.getItem('kosoepets_cart_v741')) || [];
 
-// Live Google Sheets Stock Cache (Single-batch cached by SKU)
+// Live POS Inventory Stock Cache (Single-batch cached by SKU)
 let productStockMap = {}; // { 'P001': { product_sku, product_id, stock_qty, stock_status, last_synced_at } }
 let stockLowThreshold = 5;
 let stockSyncIntervalSec = 60;
@@ -107,9 +107,7 @@ let currentStaffUser = null;
 let currentPermissions = {};
 let staffUsersList = [];
 let auditLogsList = [];
-let stockSyncLogsList = [];
 let activeStaffView = 'products';
-let activeLogSubTab = 'staff';
 
 const ALL_PERMISSION_CODES = [
     'product.view', 'product.add', 'product.edit', 'product.price_edit',
@@ -284,7 +282,7 @@ function renderBannerSlideshow() {
 }
 
 // ==========================================
-// 3.6 GOOGLE SHEETS LIVE STOCK SYNCHRONIZATION (BATCHED & RESILIENT)
+// 3.6 POS Inventory LIVE STOCK SYNCHRONIZATION (BATCHED & RESILIENT)
 // ==========================================
 function getEffectiveProductStock(item) {
     // Manual admin override: Force Out of Stock
@@ -337,58 +335,16 @@ async function fetchCachedProductStock() {
     }
 }
 
-async function triggerGoogleSheetSyncNow(isManual = false) {
-    if (useLocalFallback || !supabaseClient) return;
-    const btn = document.getElementById('triggerSheetSyncBtn');
-    if (btn && isManual) btn.disabled = true;
-
-    try {
-        const { data, error } = await supabaseClient.functions.invoke('sync-google-sheet-stock');
-        if (error || (data && data.success === false)) {
-            const errDetail = (data && data.error) ? data.error : (error ? error.message : 'Sync failed');
-            lastStockSyncError = errDetail;
-            updateStockWarningBanner();
-            if (isManual) alert("Stock sync warning: " + errDetail + "\nShowing last synchronized data.");
-        } else {
-            lastStockSyncError = null;
-            updateStockWarningBanner();
-            if (isManual) {
-                showToast(`Stock synced! (${data.products_received || 0} rows, ${data.products_updated || 0} changed)`);
-            }
-        }
-    } catch (e) {
-        lastStockSyncError = e.message;
-        updateStockWarningBanner();
-    } finally {
-        if (btn && isManual) btn.disabled = false;
-        await fetchCachedProductStock();
-        if (activeStaffView === 'logs' && activeLogSubTab === 'sync') {
-            fetchStockSyncLogs();
-        }
-    }
-}
-
-function updateStockWarningBanner() {
-    const banner = document.getElementById('stockSyncWarningBanner');
-    if (!banner) return;
-    // Show internal sync warning only to logged-in staff when Google Sheets sync fails
-    if (currentStaffUser && lastStockSyncError) {
-        banner.classList.remove('hidden');
-    } else {
-        banner.classList.add('hidden');
-    }
-}
-
 function startStockAutoRefresh() {
     clearInterval(stockSyncTimer);
     const intervalMs = Math.max(15, Number(stockSyncIntervalSec) || 60) * 1000;
 
-    // Periodic non-disruptive refresh from Supabase POS stock (never overwrite with Google Sheets)
+    // Periodic non-disruptive refresh from Supabase POS stock cache (POS Inventory permanently disconnected)
     stockSyncTimer = setInterval(async () => {
         await fetchCachedProductStock();
     }, intervalMs);
 
-    // Subscribe to Realtime changes on product_stock so all devices update instantaneously
+    // Subscribe to Realtime changes on product_stock so POS sales & restocks update storefront immediately
     if (!useLocalFallback && supabaseClient && !stockChannelSubscribed) {
         stockChannelSubscribed = true;
         supabaseClient.channel('public:product_stock')
@@ -1268,12 +1224,12 @@ function applyStaffUIState() {
     const posNavBtn = document.getElementById('openPosTerminalBtn');
     if (posNavBtn) posNavBtn.classList.toggle('hidden', !(hasPerm('pos.sell') || hasPerm('pos.restock')));
 
-    updateStockWarningBanner();
-
     if (!loggedIn) {
+        clearTimeout(storefrontIdleTimer);
         switchStaffView('products');
     } else {
         updateDashboardMetrics();
+        resetStorefrontInactivityTimer();
     }
 
     renderProducts(currentProducts);
@@ -1882,13 +1838,10 @@ async function cleanSystemLogs(mode) {
         alert('Permission denied: Admin access required to clean logs.');
         return;
     }
-    let rpcMode = mode;
-    if (mode === 'CURRENT_ALL') {
-        rpcMode = activeLogSubTab === 'sync' ? 'SYNC_ALL' : 'ACTIVITY_ALL';
-    }
+    const rpcMode = mode === 'ACTIVITY_OLD' ? 'ACTIVITY_OLD' : 'ACTIVITY_ALL';
     const label = rpcMode === 'ACTIVITY_OLD'
         ? 'delete Staff Activity Logs older than 30 days'
-        : (rpcMode === 'SYNC_ALL' ? 'clear ALL Google Sheet Sync Logs' : 'clear ALL Staff Activity Logs');
+        : 'clear ALL Staff Activity Logs';
 
     if (!confirm(`Are you sure you want to ${label}? This action cannot be undone.`)) {
         return;
@@ -1909,83 +1862,15 @@ async function cleanSystemLogs(mode) {
 
 function viewUserActivityLogs(username) {
     switchStaffView('logs');
-    switchLogSubTab('staff');
     document.getElementById('logSearchUser').value = username;
     fetchAuditLogs();
 }
 
 // ==========================================
-// 10. ACTIVITY AUDIT LOGS & GOOGLE SHEET SYNC LOGS
+// 10. ACTIVITY AUDIT LOGS
 // ==========================================
-function switchLogSubTab(subTab) {
-    activeLogSubTab = subTab;
-    const staffBtn = document.getElementById('subTabStaffLogsBtn');
-    const syncBtn = document.getElementById('subTabSyncLogsBtn');
-
-    if (subTab === 'staff') {
-        staffBtn.style.background = '#ff758c';
-        staffBtn.style.color = '#fff';
-        syncBtn.style.background = '#e9ecef';
-        syncBtn.style.color = '#333';
-        document.getElementById('staffActivityLogsSubPanel').classList.remove('hidden');
-        document.getElementById('stockSyncLogsSubPanel').classList.add('hidden');
-        fetchAuditLogs();
-    } else {
-        syncBtn.style.background = '#ff758c';
-        syncBtn.style.color = '#fff';
-        staffBtn.style.background = '#e9ecef';
-        staffBtn.style.color = '#333';
-        document.getElementById('staffActivityLogsSubPanel').classList.add('hidden');
-        document.getElementById('stockSyncLogsSubPanel').classList.remove('hidden');
-        fetchStockSyncLogs();
-    }
-}
-
 function refreshCurrentLogTab() {
-    if (activeLogSubTab === 'sync') fetchStockSyncLogs();
-    else fetchAuditLogs();
-}
-
-async function fetchStockSyncLogs() {
-    if (!hasPerm('logs.view') || useLocalFallback || !supabaseClient) return;
-    const tbody = document.getElementById('stockSyncLogsTableBody');
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">Loading stock synchronization logs...</td></tr>';
-
-    const { data, error } = await supabaseClient
-        .from('stock_sync_logs')
-        .select('*')
-        .order('id', { ascending: false })
-        .limit(200);
-
-    if (error) {
-        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:#ff4757;">Error: ${escapeHtml(error.message)}</td></tr>`;
-        return;
-    }
-
-    stockSyncLogsList = data || [];
-    if (stockSyncLogsList.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#777;">No Google Sheet synchronization logs recorded yet.</td></tr>';
-        return;
-    }
-
-    tbody.innerHTML = stockSyncLogsList.map(log => {
-        const dtStr = new Date(log.synced_at).toLocaleString();
-        const color = log.status === 'SUCCESS' ? '#2ed573' : (log.status === 'PARTIAL' ? '#ffa502' : '#ff4757');
-        const mismatchInfo = Array.isArray(log.mismatch_details) && log.mismatch_details.length > 0
-            ? `<br><small style="color:#666;">${escapeHtml(log.mismatch_details.join(' | '))}</small>`
-            : '';
-        return `
-            <tr>
-                <td style="white-space:nowrap;">${dtStr}</td>
-                <td><strong style="color:${color};">${escapeHtml(log.status)}</strong></td>
-                <td>${log.products_received}</td>
-                <td>${log.products_updated}</td>
-                <td>${log.mismatch_count}</td>
-                <td>${log.error_count}</td>
-                <td>${escapeHtml(log.error_message || 'All matched cleanly')}${mismatchInfo}</td>
-            </tr>
-        `;
-    }).join('');
+    fetchAuditLogs();
 }
 
 async function writeAuditLog(action, entityType, entityId, entityName, description, oldVal = null, newVal = null, result = 'Success') {
@@ -2190,3 +2075,37 @@ async function saveContact() {
     await writeAuditLog('UPDATE_SETTINGS', 'SETTINGS', 'contact', 'Contact Us', 'Updated Contact Us links', null, { phone, email, fb, tiktok });
     closeModal('contactModal');
 }
+
+
+// ==========================================
+// 12. 90-SECOND INACTIVITY AUTO-SIGNOUT (INTERACTION-DRIVEN, ZERO FALSE LOGOUTS)
+// ==========================================
+let storefrontIdleTimer = null;
+let lastStorefrontTouchMs = 0;
+
+function resetStorefrontInactivityTimer() {
+    if (!currentStaffUser || !staffSessionToken) return;
+    clearTimeout(storefrontIdleTimer);
+    storefrontIdleTimer = setTimeout(async () => {
+        if (!currentStaffUser) return;
+        await logout();
+        alert(currentLang === 'mm'
+            ? 'လှုပ်ရှားမှုမရှိသည်မှာ စက္ကန့် ၉၀ ကျော်သွားပါသဖြင့် အလိုအလျောက် Sign Out ဖြစ်သွားပါသည်။'
+            : 'Signed out automatically after 90 seconds of inactivity.');
+    }, 90000);
+
+    const now = Date.now();
+    if (now - lastStorefrontTouchMs > 25000 && !useLocalFallback && supabaseClient) {
+        lastStorefrontTouchMs = now;
+        supabaseClient.rpc('rpc_touch_session').then(({ data }) => {
+            if (data && data.expired && currentStaffUser) {
+                clearTimeout(storefrontIdleTimer);
+                logout();
+            }
+        }).catch(() => {});
+    }
+}
+
+['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll'].forEach(evt => {
+    window.addEventListener(evt, resetStorefrontInactivityTimer, { passive: true });
+});
