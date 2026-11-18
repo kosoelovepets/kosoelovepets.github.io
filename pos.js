@@ -709,7 +709,7 @@ function printPosReceipt(sale) {
                     font-family: 'Pyidaungsu';
                     src: local('Pyidaungsu'), url('https://cdn.jsdelivr.net/gh/mgyway/pyidaungsu-font@master/Pyidaungsu-2.5.3_Regular.ttf') format('truetype');
                 }
-                body { font-family: 'Pyidaungsu', 'Courier New', monospace; width: 300px; margin: 0 auto; padding: 14px; color: #111; font-size: 13px; line-height: 1.5; }
+                body { font-family: 'Pyidaungsu', 'Padauk', 'Noto Sans Myanmar', sans-serif; width: 300px; margin: 0 auto; padding: 14px; color: #111; font-size: 13px; line-height: 1.5; }
                 .center { text-align: center; }
                 .divider { border-top: 1px dashed #333; margin: 8px 0; }
                 table { width: 100%; border-collapse: collapse; }
