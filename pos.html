@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ko Soe Love Pets — POS Terminal (v8.0)</title>
+    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="pos.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+    <!-- Top Navigation Bar -->
+    <header class="pos-topbar">
+        <div class="pos-brand">
+            <h1><i class="fa fa-paw"></i> Ko Soe Love Pets POS</h1>
+            <span class="ver-badge">v8.0</span>
+        </div>
+
+        <nav class="pos-nav-tabs hidden" id="posNavTabs">
+            <button type="button" class="pos-tab-btn active" id="navRegisterBtn" onclick="switchPosTab('register')">
+                <i class="fa fa-cash-register"></i> Register
+            </button>
+            <button type="button" class="pos-tab-btn" id="navRestockBtn" onclick="switchPosTab('restock')">
+                <i class="fa fa-boxes-stacked"></i> Stock-In / Adjust
+            </button>
+            <button type="button" class="pos-tab-btn" id="navHistoryBtn" onclick="switchPosTab('history')">
+                <i class="fa fa-receipt"></i> Sales &amp; Ledger
+            </button>
+        </nav>
+
+        <div class="pos-user-actions">
+            <span class="cashier-chip hidden" id="posCashierChip"></span>
+            <a href="index.html" class="btn-top"><i class="fa fa-store"></i> Storefront</a>
+            <button type="button" class="btn-top danger hidden" id="posLogoutBtn" onclick="posLogout()">
+                <i class="fa fa-sign-out-alt"></i> Logout
+            </button>
+        </div>
+    </header>
+
+    <!-- Staff Login Gate (Shares existing staff_users & session token) -->
+    <section class="pos-login-gate" id="posLoginGate">
+        <h2><i class="fa fa-lock"></i> POS Staff Sign In</h2>
+        <p>Sign in with your Ko Soe Love Pets Admin or Sales Team account.</p>
+        <input type="text" id="posLoginUser" placeholder="Username" autocomplete="username">
+        <input type="password" id="posLoginPass" placeholder="Password" autocomplete="current-password" onkeydown="if(event.key==='Enter') posLogin()">
+        <p id="posLoginError" style="color:#dc2626; font-weight:700; min-height:20px;"></p>
+        <button type="button" class="btn-checkout" id="posLoginSubmitBtn" onclick="posLogin()">Open POS Register</button>
+    </section>
+
+    <!-- TAB 1: MAIN REGISTER (CHECKOUT) -->
+    <main class="pos-workspace hidden" id="posRegisterView">
+        <!-- Left: Product & Barcode/SKU Grid -->
+        <section class="pos-catalog-panel">
+            <div class="pos-search-row">
+                <input type="text" id="posSearchInput" class="pos-search-input" placeholder="Scan barcode or search SKU (P00001) / Product Name..." autofocus>
+                <button type="button" class="btn-top" style="background:#f1f5f9;" onclick="refreshPosData()" title="Refresh Stock">
+                    <i class="fa fa-sync-alt"></i>
+                </button>
+            </div>
+
+            <div class="pos-cat-pills" id="posCategoryPills">
+                <button type="button" class="cat-pill active" onclick="setPosCategory('ALL', this)">All Items</button>
+                <button type="button" class="cat-pill" onclick="setPosCategory('Cats', this)">Cats</button>
+                <button type="button" class="cat-pill" onclick="setPosCategory('Dogs', this)">Dogs</button>
+                <button type="button" class="cat-pill" onclick="setPosCategory('Accessories', this)">Accessories</button>
+            </div>
+
+            <div class="pos-product-grid" id="posProductGrid"></div>
+        </section>
+
+        <!-- Right: Active Receipt Cart -->
+        <aside class="pos-cart-panel">
+            <div>
+                <div class="cart-header">
+                    <h3><i class="fa fa-shopping-basket"></i> Current Receipt</h3>
+                    <button type="button" class="btn-sm danger" onclick="clearPosCart()">Clear</button>
+                </div>
+
+                <div class="cart-items-scroll" id="posCartList">
+                    <p style="text-align:center; color:#64748b; padding:35px 0; font-weight:600;">Select items or scan SKU to start sale</p>
+                </div>
+            </div>
+
+            <div>
+                <div class="checkout-grid">
+                    <div class="field-group">
+                        <label>Order Channel</label>
+                        <select id="posSaleChannel">
+                            <option value="IN_STORE">In-Store Walk-in</option>
+                            <option value="VIBER_ORDER">Viber Paid Order</option>
+                        </select>
+                    </div>
+                    <div class="field-group">
+                        <label>Payment Method</label>
+                        <select id="posPaymentMethod" onchange="toggleCashTenderedField()">
+                            <option value="CASH">Cash (MMK)</option>
+                            <option value="KBZPAY">KBZPay</option>
+                            <option value="WAVEPAY">WavePay</option>
+                            <option value="BANK_TRANSFER">Bank Transfer</option>
+                        </select>
+                    </div>
+                    <div class="field-group">
+                        <label>Discount (MMK)</label>
+                        <input type="number" id="posDiscountInput" min="0" value="0" oninput="recalcPosTotals()">
+                    </div>
+                    <div class="field-group" id="cashTenderedGroup">
+                        <label>Cash Received (MMK)</label>
+                        <input type="number" id="posCashTendered" min="0" placeholder="Exact or higher" oninput="recalcPosTotals()">
+                    </div>
+                    <div class="field-group hidden" id="paymentRefGroup">
+                        <label>Transfer Ref / Last 6 Digits</label>
+                        <input type="text" id="posPaymentRef" placeholder="e.g. TXN-482910">
+                    </div>
+                </div>
+
+                <div class="field-group" style="margin-bottom:10px;">
+                    <input type="text" id="posCustomerNote" placeholder="Optional customer name / phone / delivery note...">
+                </div>
+
+                <div class="totals-box">
+                    <div class="total-line"><span>Subtotal:</span><span id="posSubtotalVal">0 MMK</span></div>
+                    <div class="total-line"><span>Discount:</span><span id="posDiscountVal">0 MMK</span></div>
+                    <div class="total-line grand"><span>Grand Total:</span><span id="posGrandTotalVal">0 MMK</span></div>
+                    <div class="total-line" id="posChangeLine" style="color:#16a34a;"><span>Change Due:</span><span id="posChangeVal">0 MMK</span></div>
+                </div>
+
+                <button type="button" class="btn-checkout" id="posCompleteSaleBtn" onclick="completePosSale()">
+                    <i class="fa fa-check-circle"></i> Complete Sale &amp; Print Receipt
+                </button>
+            </div>
+        </aside>
+    </main>
+
+    <!-- TAB 2: STOCK-IN / INVENTORY ADJUSTMENT -->
+    <section class="pos-subview hidden" id="posRestockView">
+        <div class="pos-panel-card">
+            <div class="subview-header">
+                <div>
+                    <h2><i class="fa fa-boxes-stacked"></i> Inventory Stock-In &amp; Count Adjustment</h2>
+                    <p style="color:#64748b; font-size:14px;">Updates live website stock immediately and logs every change in the audit ledger.</p>
+                </div>
+                <button type="button" class="btn-sm primary" onclick="exportStockCsv()"><i class="fa fa-file-excel"></i> Export Current Stock (CSV)</button>
+            </div>
+
+            <div class="table-wrap">
+                <table class="pos-table">
+                    <thead>
+                        <tr>
+                            <th>SKU</th>
+                            <th>Product Name</th>
+                            <th>Category</th>
+                            <th>Price</th>
+                            <th>Current Stock</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="posRestockTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- TAB 3: SALES HISTORY & STOCK LEDGER -->
+    <section class="pos-subview hidden" id="posHistoryView">
+        <div class="kpi-strip">
+            <div class="kpi-box"><small>Today's Completed Sales</small><div id="kpiTodayCount">0</div></div>
+            <div class="kpi-box"><small>Today's Revenue (MMK)</small><div id="kpiTodayRevenue" style="color:#16a34a;">0 MMK</div></div>
+            <div class="kpi-box"><small>In-Store vs. Viber Paid</small><div id="kpiChannelSplit">0 / 0</div></div>
+            <div class="kpi-box"><small>Low Stock Items (&le; <span id="kpiLowThresh">15</span>)</small><div id="kpiLowStockCount" style="color:#d97706;">0</div></div>
+        </div>
+
+        <div class="pos-panel-card" style="margin-bottom:16px;">
+            <div class="subview-header">
+                <h3><i class="fa fa-receipt"></i> POS Receipts</h3>
+                <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                    <input type="date" id="salesFilterDate" onchange="fetchPosSalesHistory()" style="padding:6px 10px; border:1px solid #cbd5e1; border-radius:8px;">
+                    <button type="button" class="btn-sm" onclick="document.getElementById('salesFilterDate').value=''; fetchPosSalesHistory();">All Dates</button>
+                    <button type="button" class="btn-sm primary" onclick="exportSalesCsv()"><i class="fa fa-file-csv"></i> Export Sales Report (CSV)</button>
+                </div>
+            </div>
+            <div class="table-wrap">
+                <table class="pos-table">
+                    <thead>
+                        <tr>
+                            <th>Receipt #</th>
+                            <th>Date / Time</th>
+                            <th>Channel</th>
+                            <th>Payment</th>
+                            <th>Grand Total</th>
+                            <th>Cashier</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="posSalesTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="pos-panel-card">
+            <div class="subview-header">
+                <h3><i class="fa fa-history"></i> Stock Movement Ledger (Last 100 Movements)</h3>
+            </div>
+            <div class="table-wrap">
+                <table class="pos-table">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>SKU</th>
+                            <th>Product</th>
+                            <th>Type</th>
+                            <th>Change</th>
+                            <th>Before &rarr; After</th>
+                            <th>Ref / Note</th>
+                            <th>Staff</th>
+                        </tr>
+                    </thead>
+                    <tbody id="posMovementsTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- RESTOCK / ADJUST MODAL -->
+    <div class="pos-modal" id="restockModal" onclick="if(event.target===this) closeRestockModal()">
+        <div class="pos-modal-box">
+            <div class="pos-modal-header">
+                <h3 id="restockModalTitle">Update Stock</h3>
+                <button type="button" class="btn-sm" onclick="closeRestockModal()">&times;</button>
+            </div>
+            <input type="hidden" id="restockProductId">
+            <p id="restockProductLabel" style="font-weight:700; margin-bottom:12px;"></p>
+
+            <div class="field-group" style="margin-bottom:10px;">
+                <label>Update Mode</label>
+                <select id="restockMode">
+                    <option value="ADD">Add Incoming Stock (+ Qty)</option>
+                    <option value="SET">Set Exact Physical Count (= Qty)</option>
+                </select>
+            </div>
+            <div class="field-group" style="margin-bottom:10px;">
+                <label>Quantity</label>
+                <input type="number" id="restockQtyInput" min="0" value="10">
+            </div>
+            <div class="field-group" style="margin-bottom:14px;">
+                <label>Reason / Supplier Note</label>
+                <input type="text" id="restockNoteInput" placeholder="e.g. New shipment from supplier">
+            </div>
+            <button type="button" class="btn-checkout" id="saveRestockBtn" onclick="submitRestock()">Save Stock Update</button>
+        </div>
+    </div>
+
+    <div class="toast-msg hidden" id="posToast"></div>
+    <script src="pos.js"></script>
+</body>
+</html>
