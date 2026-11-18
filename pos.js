@@ -327,17 +327,7 @@ async function posLogout() {
 
 async function activatePosWorkspace() {
     if (!hasPosPerm('pos.sell') && !hasPosPerm('pos.restock')) {
-        if (staffToken) {
-            try { await supabaseClient.rpc('rpc_staff_logout', { p_user_agent: navigator.userAgent }); } catch (_) {}
-        }
-        staffToken = '';
-        localStorage.removeItem('kosoepets_staff_token_v75');
-        currentUser = null;
-        userPermissions = {};
-        initSupabase();
-        document.getElementById('posLoginError').innerHTML = currentPosLang === 'mm'
-            ? 'ဤအကောင့်တွင် POS အသုံးပြုခွင့် (pos.sell / pos.restock) မပါဝင်ပါ။ <a href="index.html" style="color:#4f46e5;text-decoration:underline;">ပင်မစာမျက်နှာ (Storefront) သို့သွားရန်</a>'
-            : 'This account has Storefront-only permissions (no POS access). <a href="index.html" style="color:#4f46e5;text-decoration:underline;">Go to Main Website</a>';
+        document.getElementById('posLoginError').innerText = 'Your account does not have POS access permissions.';
         return;
     }
 
@@ -473,22 +463,23 @@ function renderPosCatalog() {
     }
 
     grid.innerHTML = list.map(p => {
+        const isDeleted = Boolean(p.is_deleted);
         const st = getStockForProduct(p);
-        const disabled = st.status === 'OUT_OF_STOCK' || !p.sku;
-        const badgeClass = st.status === 'IN_STOCK' ? 'in' : (st.status === 'LOW_STOCK' ? 'low' : 'out');
-        const badgeText = st.status === 'OUT_OF_STOCK'
-            ? (currentPosLang === 'mm' ? 'ပြတ် (0)' : 'Out (0)')
-            : (currentPosLang === 'mm' ? `ကျန်: ${st.qty}` : `Stock: ${st.qty}`);
+        const disabled = isDeleted || st.status === 'OUT_OF_STOCK' || !p.sku;
+        const badgeClass = isDeleted ? 'out' : (st.status === 'IN_STOCK' ? 'in' : (st.status === 'LOW_STOCK' ? 'low' : 'out'));
+        const badgeText = isDeleted
+            ? '[Deleted]'
+            : (st.status === 'OUT_OF_STOCK' ? (currentPosLang === 'mm' ? 'ပြတ် (0)' : 'Out (0)') : (currentPosLang === 'mm' ? `ကျန်: ${st.qty}` : `Stock: ${st.qty}`));
 
         return `
-            <div class="pos-item-tile ${disabled ? 'disabled' : ''}" onclick="${disabled ? '' : `addPosCartItem(${p.id})`}">
+            <div class="pos-item-tile ${disabled ? 'disabled' : ''}" style="${isDeleted ? 'opacity:0.45; background:#fef2f2;' : ''}" onclick="${disabled ? '' : `addPosCartItem(${p.id})`}">
                 <div>
                     <div class="pos-tile-top">
                         <span class="sku-tag">${escapeHtml(p.sku || 'NO-SKU')}</span>
                         <span class="stock-badge ${badgeClass}">${badgeText}</span>
                     </div>
                     <img src="${escapeHtml(p.img || '')}" class="pos-tile-img" onerror="this.style.display='none'">
-                    <div class="pos-tile-name">${escapeHtml(p.name)}</div>
+                    <div class="pos-tile-name">${escapeHtml(p.name)}${isDeleted ? `<br><small style="color:#dc2626; font-weight:800;">(@${escapeHtml(p.deleted_by || 'admin')})</small>` : ''}</div>
                 </div>
                 <div class="pos-tile-price">${Number(p.price).toLocaleString()} MMK</div>
             </div>
@@ -809,22 +800,24 @@ function renderRestockTable() {
     if (!tbody) return;
 
     tbody.innerHTML = products.map(p => {
+        const isDeleted = Boolean(p.is_deleted);
         const st = getStockForProduct(p);
-        const badgeClass = st.status === 'IN_STOCK' ? 'in' : (st.status === 'LOW_STOCK' ? 'low' : 'out');
-        const label = st.status === 'IN_STOCK' ? tPos('badge_in') : (st.status === 'LOW_STOCK' ? tPos('badge_low') : tPos('badge_out'));
+        const badgeClass = isDeleted ? 'out' : (st.status === 'IN_STOCK' ? 'in' : (st.status === 'LOW_STOCK' ? 'low' : 'out'));
+        const label = isDeleted ? `Deleted (@${escapeHtml(p.deleted_by || 'admin')})` : (st.status === 'IN_STOCK' ? tPos('badge_in') : (st.status === 'LOW_STOCK' ? tPos('badge_low') : tPos('badge_out'));
 
         return `
-            <tr>
+            <tr style="${isDeleted ? 'opacity:0.5; background:#fff1f2;' : ''}">
                 <td><code>${escapeHtml(p.sku || '-')}</code></td>
                 <td><strong>${escapeHtml(p.name)}</strong></td>
                 <td>${escapeHtml(p.type)} / ${escapeHtml(p.category)}</td>
                 <td>${Number(p.price).toLocaleString()} MMK</td>
-                <td><strong style="font-size:16px;">${st.qty}</strong></td>
+                <td><strong style="font-size:16px;">${isDeleted ? '-' : st.qty}</strong></td>
                 <td><span class="stock-badge ${badgeClass}">${label}</span></td>
                 <td>
-                    <button type="button" class="btn-sm primary" onclick="openRestockModal(${p.id})" ${!p.sku ? 'disabled' : ''}>
-                        <i class="fa fa-plus-circle"></i> ${tPos('btn_stock_in')}
-                    </button>
+                    ${isDeleted 
+                        ? `<span style="color:#b91c1c; font-weight:800; font-size:12px;"><i class="fa fa-ban"></i> Archived</span>`
+                        : `<button type="button" class="btn-sm primary" onclick="openRestockModal(${p.id})" ${!p.sku ? 'disabled' : ''}><i class="fa fa-plus-circle"></i> ${tPos('btn_stock_in')}</button>`
+                    }
                 </td>
             </tr>
         `;
