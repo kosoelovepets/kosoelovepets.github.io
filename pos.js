@@ -206,10 +206,13 @@ function switchPosLanguage() {
         }
     });
 
+    if (!currentUser) return;
+
     renderPosCatalog();
     renderPosCart();
     renderRestockTable();
-    if (!document.getElementById('posHistoryView').classList.contains('hidden')) {
+    const histView = document.getElementById('posHistoryView');
+    if (histView && !histView.classList.contains('hidden')) {
         fetchPosSalesHistory();
     }
 }
@@ -327,7 +330,17 @@ async function posLogout() {
 
 async function activatePosWorkspace() {
     if (!hasPosPerm('pos.sell') && !hasPosPerm('pos.restock')) {
-        document.getElementById('posLoginError').innerText = 'Your account does not have POS access permissions.';
+        if (staffToken) {
+            try { await supabaseClient.rpc('rpc_staff_logout', { p_user_agent: navigator.userAgent }); } catch (_) {}
+        }
+        staffToken = '';
+        localStorage.removeItem('kosoepets_staff_token_v75');
+        currentUser = null;
+        userPermissions = {};
+        initSupabase();
+        document.getElementById('posLoginError').innerHTML = currentPosLang === 'mm'
+            ? 'ဤအကောင့်တွင် POS အသုံးပြုခွင့် (pos.sell / pos.restock) မပါဝင်ပါ။ <a href="index.html" style="color:#4f46e5;text-decoration:underline;">ပင်မစာမျက်နှာ (Storefront) သို့သွားရန်</a>'
+            : 'This account has Storefront-only permissions (no POS access). <a href="index.html" style="color:#4f46e5;text-decoration:underline;">Go to Main Website</a>';
         return;
     }
 
@@ -803,7 +816,7 @@ function renderRestockTable() {
         const isDeleted = Boolean(p.is_deleted);
         const st = getStockForProduct(p);
         const badgeClass = isDeleted ? 'out' : (st.status === 'IN_STOCK' ? 'in' : (st.status === 'LOW_STOCK' ? 'low' : 'out'));
-        const label = isDeleted ? `Deleted (@${escapeHtml(p.deleted_by || 'admin')})` : (st.status === 'IN_STOCK' ? tPos('badge_in') : (st.status === 'LOW_STOCK' ? tPos('badge_low') : tPos('badge_out'));
+        const label = isDeleted ? `Deleted (@${escapeHtml(p.deleted_by || 'admin')})` : (st.status === 'IN_STOCK' ? tPos('badge_in') : (st.status === 'LOW_STOCK' ? tPos('badge_low') : tPos('badge_out')));
 
         return `
             <tr style="${isDeleted ? 'opacity:0.5; background:#fff1f2;' : ''}">
