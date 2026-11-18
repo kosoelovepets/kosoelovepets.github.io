@@ -345,7 +345,6 @@ async function activatePosWorkspace() {
 
     await refreshPosData();
     subscribeRealtimeStock();
-    startPosSessionHeartbeat(); // <-- ADD THIS LINE
 
     if (hasPosPerm('pos.sell')) {
         switchPosTab('register');
