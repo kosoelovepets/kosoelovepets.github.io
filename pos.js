@@ -345,6 +345,7 @@ async function activatePosWorkspace() {
 
     await refreshPosData();
     subscribeRealtimeStock();
+    resetPosInactivityTimer();
 
     if (hasPosPerm('pos.sell')) {
         switchPosTab('register');
@@ -1062,3 +1063,37 @@ function exportSalesCsv() {
     });
     downloadCsvFile(`KoSoeLovePets_Sales_${new Date().toISOString().slice(0,10)}.csv`, rows);
 }
+
+
+// ==========================================
+// 8. 90-SECOND INACTIVITY AUTO-SIGNOUT (INTERACTION-DRIVEN, ZERO FALSE LOGOUTS)
+// ==========================================
+let posIdleTimer = null;
+let lastPosTouchMs = 0;
+
+function resetPosInactivityTimer() {
+    if (!currentUser || !staffToken) return;
+    clearTimeout(posIdleTimer);
+    posIdleTimer = setTimeout(async () => {
+        if (!currentUser) return;
+        alert(currentPosLang === 'mm'
+            ? 'လှုပ်ရှားမှုမရှိသည်မှာ စက္ကန့် ၉၀ ကျော်သွားပါသဖြင့် အလိုအလျောက် Sign Out ဖြစ်သွားပါသည်။'
+            : 'Signed out automatically after 90 seconds of inactivity.');
+        await posLogout();
+    }, 90000);
+
+    const now = Date.now();
+    if (now - lastPosTouchMs > 25000 && supabaseClient) {
+        lastPosTouchMs = now;
+        supabaseClient.rpc('rpc_touch_session').then(({ data }) => {
+            if (data && data.expired && currentUser) {
+                clearTimeout(posIdleTimer);
+                posLogout();
+            }
+        }).catch(() => {});
+    }
+}
+
+['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll'].forEach(evt => {
+    window.addEventListener(evt, resetPosInactivityTimer, { passive: true });
+});
