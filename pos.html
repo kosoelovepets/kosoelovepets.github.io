@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ko Soe Love Pets — POS Terminal (v8.2)</title>
+    <title>Ko Soe Love Pets — POS Terminal (v8.3)</title>
     <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Noto+Sans+Myanmar:wght@400;500;700&family=Padauk:wght@400;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="pos.css">
@@ -22,7 +22,7 @@
                 </svg>
                 <span data-i18n="pos_title">Ko Soe Love Pets POS</span>
             </h1>
-            <span class="ver-badge">v8.2</span>
+            <span class="ver-badge">v8.3</span>
         </div>
 
         <nav class="pos-nav-tabs hidden" id="posNavTabs">
@@ -92,7 +92,10 @@
             <div>
                 <div class="cart-header">
                     <h3><i class="fa fa-shopping-basket"></i> <span data-i18n="current_receipt">Current Receipt</span></h3>
-                    <button type="button" class="btn-sm danger" onclick="clearPosCart()" data-i18n="btn_clear">Clear</button>
+                    <div style="display:flex; gap:6px; align-items:center;">
+                        <button type="button" class="btn-sm danger" onclick="clearPosCart()" data-i18n="btn_clear">Clear</button>
+                        <button type="button" class="btn-sm mobile-only-btn" onclick="toggleMobileReceiptDrawer(false)">&times;</button>
+                    </div>
                 </div>
 
                 <div class="cart-items-scroll" id="posCartList"></div>
@@ -269,6 +272,22 @@
                 <input type="text" id="restockNoteInput" data-i18n-ph="ph_restock_note" placeholder="e.g. New shipment from supplier">
             </div>
             <button type="button" class="btn-checkout" id="saveRestockBtn" onclick="submitRestock()" data-i18n="btn_save_stock">Save Stock Update</button>
+        </div>
+    </div>
+
+
+    <!-- STICKY BOTTOM MOBILE RECEIPT BAR (Visible on Mobile <= 960px when Register is active) -->
+    <div class="mobile-receipt-bar hidden" id="mobileReceiptBar" onclick="toggleMobileReceiptDrawer(true)">
+        <div class="mrb-left">
+            <span class="mrb-badge" id="mobileCartBadge">0</span>
+            <div>
+                <div class="mrb-title" data-i18n="current_receipt">Current Receipt</div>
+                <div class="mrb-sub" id="mobileCartSub">Tap to view items &amp; checkout</div>
+            </div>
+        </div>
+        <div class="mrb-right">
+            <span class="mrb-total" id="mobileCartTotal">0 MMK</span>
+            <span class="mrb-cta" data-i18n="btn_view_receipt">View &rarr;</span>
         </div>
     </div>
 
