@@ -345,6 +345,7 @@ async function activatePosWorkspace() {
 
     await refreshPosData();
     subscribeRealtimeStock();
+    startPosSessionHeartbeat(); // <-- ADD THIS LINE
 
     if (hasPosPerm('pos.sell')) {
         switchPosTab('register');
@@ -352,7 +353,6 @@ async function activatePosWorkspace() {
         switchPosTab('restock');
     }
 }
-
 function switchPosTab(tab) {
     ['navRegisterBtn', 'navRestockBtn', 'navHistoryBtn'].forEach(id => {
         document.getElementById(id).classList.remove('active');
