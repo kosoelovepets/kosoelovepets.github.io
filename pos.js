@@ -1,5 +1,5 @@
 // ==========================================
-// KO SOE LOVE PETS v8.3 — POS TERMINAL ENGINE
+// KO SOE LOVE PETS v8.4 — POS TERMINAL ENGINE
 // Supports Pyidaungsu Myanmar Unicode + EN/MM Language Switcher
 // ==========================================
 const SUPABASE_URL = 'https://moggsrqzhygvavsdcanh.supabase.co';
@@ -337,7 +337,8 @@ async function activatePosWorkspace() {
 
     const chip = document.getElementById('posCashierChip');
     chip.classList.remove('hidden');
-    chip.innerHTML = `<i class="fa fa-user-check"></i> ${escapeHtml(currentUser.display_name)} (${currentUser.role})`;
+    chip.title = `${currentUser.display_name} (${currentUser.role})`;
+    chip.innerHTML = `<i class="fa fa-user-check"></i> ${escapeHtml(currentUser.display_name)}`;
 
     document.getElementById('navRegisterBtn').classList.toggle('hidden', !hasPosPerm('pos.sell'));
     document.getElementById('navRestockBtn').classList.toggle('hidden', !hasPosPerm('pos.restock'));

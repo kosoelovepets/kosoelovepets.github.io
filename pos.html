@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ko Soe Love Pets — POS Terminal (v8.3)</title>
+    <title>Ko Soe Love Pets — POS Terminal (v8.4)</title>
     <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Noto+Sans+Myanmar:wght@400;500;700&family=Padauk:wght@400;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="pos.css">
@@ -13,16 +13,30 @@
 
     <!-- Top Navigation Bar -->
     <header class="pos-topbar">
-        <div class="pos-brand">
-            <h1>
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:-4px; margin-right:4px;" aria-hidden="true">
-                    <circle cx="6.5" cy="8.5" r="2.2"/><circle cx="10.2" cy="5.8" r="2.2"/>
-                    <circle cx="14.5" cy="6.2" r="2.2"/><circle cx="17.8" cy="9.2" r="2.1"/>
-                    <path d="M12 11.2c-3.1 0-5.8 2.2-6.2 4.8-.3 1.8 1.1 3.2 2.9 3.2 1.2 0 2.1-.5 3.3-.5s2.1.5 3.3.5c1.8 0 3.2-1.4 2.9-3.2-.4-2.6-3.1-4.8-6.2-4.8z"/>
-                </svg>
-                <span data-i18n="pos_title">Ko Soe Love Pets POS</span>
-            </h1>
-            <span class="ver-badge">v8.3</span>
+        <div class="pos-topbar-row1">
+            <div class="pos-brand">
+                <h1>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:-4px; margin-right:4px;" aria-hidden="true">
+                        <circle cx="6.5" cy="8.5" r="2.2"/><circle cx="10.2" cy="5.8" r="2.2"/>
+                        <circle cx="14.5" cy="6.2" r="2.2"/><circle cx="17.8" cy="9.2" r="2.1"/>
+                        <path d="M12 11.2c-3.1 0-5.8 2.2-6.2 4.8-.3 1.8 1.1 3.2 2.9 3.2 1.2 0 2.1-.5 3.3-.5s2.1.5 3.3.5c1.8 0 3.2-1.4 2.9-3.2-.4-2.6-3.1-4.8-6.2-4.8z"/>
+                    </svg>
+                    <span data-i18n="pos_title">Ko Soe Love Pets POS</span>
+                </h1>
+                <span class="ver-badge">v8.4</span>
+            </div>
+
+            <div class="pos-top-right-account">
+                <span class="cashier-chip hidden" id="posCashierChip"></span>
+                <button type="button" class="btn-top danger pos-logout-icon-btn hidden" id="posLogoutBtn" onclick="posLogout()" title="Logout">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                        <polyline points="16 17 21 12 16 7"/>
+                        <line x1="21" y1="12" x2="9" y2="12"/>
+                    </svg>
+                    <span class="logout-text" data-i18n="btn_logout">Logout</span>
+                </button>
+            </div>
         </div>
 
         <nav class="pos-nav-tabs hidden" id="posNavTabs">
@@ -42,7 +56,6 @@
                 <option value="en">English</option>
                 <option value="mm">မြန်မာ (Pyidaungsu)</option>
             </select>
-            <span class="cashier-chip hidden" id="posCashierChip"></span>
             <a href="index.html" class="btn-top storefront-btn" title="Back to Customer Storefront">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ff758c" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <path d="M3 9l1.5-5h15L21 9"/>
@@ -52,9 +65,6 @@
                 </svg>
                 <span data-i18n="btn_storefront">Storefront</span>
             </a>
-            <button type="button" class="btn-top danger hidden" id="posLogoutBtn" onclick="posLogout()">
-                <i class="fa fa-sign-out-alt"></i> <span data-i18n="btn_logout">Logout</span>
-            </button>
         </div>
     </header>
 
@@ -73,8 +83,12 @@
         <section class="pos-catalog-panel">
             <div class="pos-search-row">
                 <input type="text" id="posSearchInput" class="pos-search-input" data-i18n-ph="ph_search" placeholder="Scan barcode or search SKU (P00001) / Product Name..." autofocus>
-                <button type="button" class="btn-top" style="background:#f1f5f9;" onclick="refreshPosData()" title="Refresh Stock">
-                    <i class="fa fa-sync-alt"></i>
+                <button type="button" class="pos-refresh-icon-btn" onclick="refreshPosData()" title="Refresh Stock" aria-label="Refresh Stock">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <polyline points="23 4 23 10 17 10"/>
+                        <polyline points="1 20 1 14 7 14"/>
+                        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                    </svg>
                 </button>
             </div>
 
