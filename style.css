@@ -1,3 +1,30 @@
+@font-face {
+    font-family: 'Pyidaungsu';
+    src: local('Pyidaungsu'), local('Pyidaungsu Regular'), local('Myanmar3'),
+         url('https://cdn.jsdelivr.net/gh/nicolas-kslp/fonts/Pyidaungsu-2.5.3_Regular.ttf') format('truetype'),
+         url('https://cdn.jsdelivr.net/gh/mgyway/pyidaungsu-font@master/Pyidaungsu-2.5.3_Regular.ttf') format('truetype');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: 'Pyidaungsu';
+    src: local('Pyidaungsu Bold'), local('Myanmar3 Bold'),
+         url('https://cdn.jsdelivr.net/gh/mgyway/pyidaungsu-font@master/Pyidaungsu-2.5.3_Bold.ttf') format('truetype');
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+}
+body {
+    font-family: 'Pyidaungsu', 'Padauk', 'Noto Sans Myanmar', 'Nunito', -apple-system, BlinkMacSystemFont, sans-serif;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+}
+h1, h2, h3, .logo, .banner-text, input, select, button, textarea {
+    font-family: 'Pyidaungsu', 'Padauk', 'Noto Sans Myanmar', 'Baloo 2', 'Nunito', sans-serif;
+    line-height: 1.45;
+}
 * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Nunito', Tahoma, Geneva, Verdana, sans-serif; }
 body { background-color: #fcfcfc; color: #333; overflow-x: hidden; }
 header { background-color: #ffffff; border-bottom: 2px solid #fecfef; position: sticky; top: 0; z-index: 50; box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
