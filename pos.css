@@ -1,6 +1,24 @@
 /* ==========================================
-   KO SOE LOVE PETS v8.0 — POS TERMINAL STYLES
+   KO SOE LOVE PETS v8.1 — POS TERMINAL STYLES
+   Includes Pyidaungsu Myanmar Unicode Font Stack
    ========================================== */
+@font-face {
+    font-family: 'Pyidaungsu';
+    src: local('Pyidaungsu'), local('Pyidaungsu Regular'),
+         url('https://cdn.jsdelivr.net/gh/mgyway/pyidaungsu-font@master/Pyidaungsu-2.5.3_Regular.ttf') format('truetype');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: 'Pyidaungsu';
+    src: local('Pyidaungsu Bold'),
+         url('https://cdn.jsdelivr.net/gh/mgyway/pyidaungsu-font@master/Pyidaungsu-2.5.3_Bold.ttf') format('truetype');
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+}
+
 :root {
     --pos-primary: #ff758c;
     --pos-primary-dark: #e85a73;
@@ -17,12 +35,13 @@
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body {
-    font-family: 'Nunito', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-family: 'Pyidaungsu', 'Nunito', 'Noto Sans Myanmar', -apple-system, BlinkMacSystemFont, sans-serif;
+    line-height: 1.55;
     background: var(--pos-bg);
     color: var(--pos-text);
     min-height: 100vh;
 }
-h1, h2, h3, .brand-title { font-family: 'Baloo 2', cursive, sans-serif; }
+h1, h2, h3, .brand-title { font-family: 'Baloo 2', 'Pyidaungsu', cursive, sans-serif; }
 .hidden { display: none !important; }
 
 /* Top Bar */
@@ -444,4 +463,20 @@ table.pos-table td {
     font-size: 14px;
     z-index: 500;
     box-shadow: 0 8px 20px rgba(0,0,0,0.25);
+}
+
+/* Language Selector in POS Topbar */
+.pos-lang-select {
+    background: rgba(255,255,255,0.95);
+    color: var(--pos-text);
+    border: none;
+    padding: 6px 10px;
+    border-radius: 8px;
+    font-family: 'Pyidaungsu', 'Nunito', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+}
+input, select, button, textarea {
+    font-family: 'Pyidaungsu', 'Nunito', sans-serif;
 }
