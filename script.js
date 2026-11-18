@@ -1,7 +1,7 @@
 // ==========================================
 // 1. SUPABASE CONFIGURATION (Backend Sync + Staff Token Header)
 // ==========================================
-const APP_VERSION = 'v8.5';
+const APP_VERSION = 'v8.6';
 const SUPABASE_URL = 'https://moggsrqzhygvavsdcanh.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1vZ2dzcnF6aHlndmF2c2RjYW5oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ0NzE0NzYsImV4cCI6MjExMDA0NzQ3Nn0.l8Et78xU1eo6f7UND-0ONHPPJfM_oJ-qEMyKUAZoPIU';
 
@@ -1028,7 +1028,8 @@ function renderProducts(items) {
 
     items.forEach(item => {
         const card = document.createElement('div');
-        card.className = 'product-card';
+        const isDeleted = Boolean(item.is_deleted);
+        card.className = 'product-card' + (isDeleted ? ' product-faded-deleted' : '');
 
         const stockInfo = getEffectiveProductStock(item);
         const isOutOfStock = stockInfo.status === 'OUT_OF_STOCK';
@@ -1063,16 +1064,21 @@ function renderProducts(items) {
             <div class="product-img-broken hidden" style="display:none;"><i class="fa fa-image"></i></div>` 
             : `<div class="product-img-broken"><i class="fa fa-image"></i></div>`;
 
+        const deletedRemarkHtml = isDeleted
+            ? `<div style="background:#fee2e2; color:#b91c1c; font-size:11px; font-weight:800; padding:3px 8px; border-radius:6px; margin:6px 0;">[Deleted by @${escapeHtml(item.deleted_by || 'admin')}]</div>`
+            : '';
+
         card.innerHTML = `
             ${imgHtml}
             <div class="product-info">
                 <h3>${escapeHtml(item.name)}</h3>
                 <p class="price">${Number(item.price).toLocaleString()} MMK</p>
                 ${stockPillHtml}
+                ${deletedRemarkHtml}
                 <p class="product-meta"><strong>Exp:</strong> ${escapeHtml(item.exp)}</p>
                 <p class="product-meta">${escapeHtml(item.specs)}</p>
-                <button type="button" class="buy-btn" onclick="addToCart(${item.id})" ${isOutOfStock ? 'disabled' : ''}>
-                    ${!isOutOfStock ? '🛒 Add to Cart' : `🔴 ${t.out_of_stock}`}
+                <button type="button" class="buy-btn" onclick="addToCart(${item.id})" ${isOutOfStock || isDeleted ? 'disabled' : ''}>
+                    ${isDeleted ? '🚫 Deleted' : (!isOutOfStock ? '🛒 Add to Cart' : `🔴 ${t.out_of_stock}`)}
                 </button>
                 ${adminHtml}
                 ${updatedMetaHtml}
@@ -1361,12 +1367,18 @@ async function savePassword() {
 // ==========================================
 // 8. PRODUCT CRUD WITH GRANULAR PERMISSIONS & DIFF AUDIT LOGGING
 // ==========================================
-function openAddModal() {
+async function openAddModal() {
     if (!hasPerm('product.add')) {
         alert("Permission denied: You do not have 'product.add' permission.");
         return;
     }
-    document.getElementById('addSku').value = '';
+    document.getElementById('addSku').value = 'Generating SKU...';
+    if (!useLocalFallback && supabaseClient) {
+        const { data, error } = await supabaseClient.rpc('generate_next_product_sku');
+        document.getElementById('addSku').value = (!error && data) ? data : 'P00001';
+    } else {
+        document.getElementById('addSku').value = 'P' + String(Date.now()).slice(-5);
+    }
     document.getElementById('addName').value = '';
     document.getElementById('addImg').value = '';
     document.getElementById('addImgFile').value = '';
@@ -1593,26 +1605,21 @@ async function deleteProduct(id) {
         return;
     }
     const targetItem = products.find(p => Number(p.id) === Number(id));
-    if (confirm(`Are you sure you want to delete "${targetItem ? targetItem.name : id}"?`)) {
+    if (confirm(`Soft-delete "${targetItem ? targetItem.name : id}"? It will be faded in POS & storefront with your username remark.`)) {
         if (useLocalFallback) {
             products = products.filter(p => Number(p.id) !== Number(id));
             localStorage.setItem('kosoepets_products_v741', JSON.stringify(products));
             fetchProducts();
         } else {
-            const { error } = await supabaseClient.from('products').delete().eq('id', id);
-            if (error) {
-                alert("Database security blocked deletion: " + error.message);
+            const { data, error } = await supabaseClient.rpc('rpc_soft_delete_product', {
+                p_product_id: id,
+                p_user_agent: navigator.userAgent
+            });
+            if (error || !data || !data.success) {
+                alert('Soft-delete failed: ' + ((data && data.error) ? data.error : (error ? error.message : 'Error')));
                 return;
             }
-            await writeAuditLog(
-                'DELETE_PRODUCT',
-                'PRODUCT',
-                String(id),
-                targetItem ? targetItem.name : String(id),
-                `Deleted product "${targetItem ? targetItem.name : id}" (${targetItem ? Number(targetItem.price).toLocaleString() + ' MMK' : ''})`,
-                targetItem || null,
-                null
-            );
+            showToast(`Product soft-deleted (faded in POS/website).`);
             await fetchProducts();
         }
     }
@@ -1705,8 +1712,10 @@ function openUserFormModal(userId = null) {
         document.getElementById('formStatus').value = 'active';
         document.getElementById('formPasswordLabel').innerText = 'Initial Password (Min 4 chars):';
         setAllPermissionCheckboxes(false);
-        const viewCb = document.querySelector('#permCheckboxGrid input[value="product.view"]');
-        if (viewCb) viewCb.checked = true;
+        ['product.view', 'pos.sell', 'pos.restock'].forEach(code => {
+            const cb = document.querySelector(`#permCheckboxGrid input[value="${code}"]`);
+            if (cb) cb.checked = true;
+        });
     } else {
         const u = staffUsersList.find(item => item.id === userId);
         if (!u) return;
