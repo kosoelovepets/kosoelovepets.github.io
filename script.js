@@ -383,13 +383,9 @@ function startStockAutoRefresh() {
     clearInterval(stockSyncTimer);
     const intervalMs = Math.max(15, Number(stockSyncIntervalSec) || 60) * 1000;
 
-    // Periodic non-disruptive refresh (updates stock state without reloading the page)
+    // Periodic non-disruptive refresh from Supabase POS stock (never overwrite with Google Sheets)
     stockSyncTimer = setInterval(async () => {
-        if (currentStaffUser) {
-            await triggerGoogleSheetSyncNow(false);
-        } else {
-            await fetchCachedProductStock();
-        }
+        await fetchCachedProductStock();
     }, intervalMs);
 
     // Subscribe to Realtime changes on product_stock so all devices update instantaneously
