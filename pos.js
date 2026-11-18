@@ -778,7 +778,8 @@ async function fetchStockMovements() {
 }
 
 function downloadCsvFile(filename, rows) {
-    const csvContent = '\ufeff' + rows.map(r => r.map(cell => `"${String(cell ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
+    const csvContent = '﻿' + rows.map(r => r.map(cell => `"${String(cell ?? '').replace(/"/g, '""')}"`).join(',')).join('
+');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
