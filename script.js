@@ -1,7 +1,7 @@
 // ==========================================
 // 1. SUPABASE CONFIGURATION (Backend Sync + Staff Token Header)
 // ==========================================
-const APP_VERSION = 'v8.2';
+const APP_VERSION = 'v8.3';
 const SUPABASE_URL = 'https://moggsrqzhygvavsdcanh.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1vZ2dzcnF6aHlndmF2c2RjYW5oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ0NzE0NzYsImV4cCI6MjExMDA0NzQ3Nn0.l8Et78xU1eo6f7UND-0ONHPPJfM_oJ-qEMyKUAZoPIU';
 
@@ -1202,7 +1202,13 @@ async function login() {
         }
 
         if (!data || !data.success) {
-            errEl.innerText = (data && data.error) ? data.error : 'Invalid username or password';
+            if (data && data.code === 'ALREADY_LOGGED_IN') {
+                errEl.innerText = currentLang === 'mm'
+                    ? 'ဤအကောင့်သည် အခြားစက်တစ်ခုတွင် ဝင်ရောက်အသုံးပြုနေပါသည်။ ထိုစက်မှ Logout အရင်လုပ်ပါ။'
+                    : 'Already logged in on another device. Please logout from the other device first.';
+            } else {
+                errEl.innerText = (data && data.error) ? data.error : 'Invalid username or password';
+            }
             return;
         }
 
@@ -1693,6 +1699,10 @@ async function fetchStaffUsers() {
             ? `<button type="button" class="edit-btn" onclick="openUserFormModal('${u.id}')"><i class="fa fa-edit"></i> Edit / Perms</button>`
             : `<span style="color:#888;font-size:12px;">Protected</span>`;
 
+        const unlockButton = (!isSuper && !isSelf)
+            ? `<button type="button" class="mini-btn" style="background:#fff3cd;color:#856404;" onclick="forceUnlockStaffSession('${u.id}', '${escapeHtml(u.username)}')" title="Force logout this user from any active device"><i class="fa fa-unlock"></i> Unlock</button>`
+            : '';
+
         const logsButton = hasPerm('logs.view')
             ? `<button type="button" class="mini-btn" onclick="viewUserActivityLogs('${escapeHtml(u.username)}')"><i class="fa fa-list"></i> Logs</button>`
             : '';
@@ -1707,7 +1717,7 @@ async function fetchStaffUsers() {
                 <td><span class="status-${u.status}">${u.status.toUpperCase()}</span></td>
                 <td>${lastLogin}</td>
                 <td><small>C: ${createdStr}<br>U: ${updatedStr}</small></td>
-                <td style="display:flex;gap:6px;flex-wrap:wrap;">${editButton} ${logsButton}</td>
+                <td style="display:flex;gap:6px;flex-wrap:wrap;">${editButton} ${unlockButton} ${logsButton}</td>
             </tr>
         `;
     }).join('');
@@ -1827,6 +1837,21 @@ async function saveStaffUser() {
     } finally {
         btn.disabled = false;
     }
+}
+
+
+async function forceUnlockStaffSession(userId, username) {
+    if (!hasPerm('users.manage')) return;
+    if (!confirm(`Force logout @${username} from all active devices so they can sign in again?`)) return;
+    const { data, error } = await supabaseClient.rpc('rpc_force_logout_staff_user', {
+        p_target_user_id: userId,
+        p_user_agent: navigator.userAgent
+    });
+    if (error || !data || !data.success) {
+        alert('Could not unlock session: ' + ((data && data.error) ? data.error : (error ? error.message : 'Error')));
+        return;
+    }
+    showToast(`Session unlocked for @${username}`);
 }
 
 function viewUserActivityLogs(username) {

@@ -1,5 +1,5 @@
 // ==========================================
-// KO SOE LOVE PETS v8.1 — POS TERMINAL ENGINE
+// KO SOE LOVE PETS v8.3 — POS TERMINAL ENGINE
 // Supports Pyidaungsu Myanmar Unicode + EN/MM Language Switcher
 // ==========================================
 const SUPABASE_URL = 'https://moggsrqzhygvavsdcanh.supabase.co';
@@ -98,7 +98,8 @@ const posTranslations = {
         badge_out: "Out of Stock",
         btn_stock_in: "Stock-In / Adjust",
         btn_print: "Print",
-        btn_void: "Void"
+        btn_void: "Void",
+        btn_view_receipt: "View Receipt →"
     },
     mm: {
         pos_title: "ကိုစိုး Love Pets POS စနစ်",
@@ -178,7 +179,8 @@ const posTranslations = {
         badge_out: "ပစ္စည်းပြတ်",
         btn_stock_in: "အဝင်ထည့် / ပြင်ရန်",
         btn_print: "Print ထုတ်ရန်",
-        btn_void: "ပယ်ဖျက်ရန်"
+        btn_void: "ပယ်ဖျက်ရန်",
+        btn_view_receipt: "ဘောက်ချာကြည့်ရန် →"
     }
 };
 
@@ -292,7 +294,13 @@ async function posLogin() {
             p_user_agent: navigator.userAgent
         });
         if (error || !data || !data.success) {
-            errEl.innerText = (data && data.error) ? data.error : (error ? error.message : 'Login failed.');
+            if (data && data.code === 'ALREADY_LOGGED_IN') {
+                errEl.innerText = currentPosLang === 'mm'
+                    ? 'ဤအကောင့်သည် အခြားစက်တစ်ခုတွင် ဝင်ရောက်အသုံးပြုနေပါသည်။ ထိုစက်မှ Logout အရင်လုပ်ပါ။'
+                    : 'Already logged in on another device. Please logout from the other device first.';
+            } else {
+                errEl.innerText = (data && data.error) ? data.error : (error ? error.message : 'Login failed.');
+            }
             return;
         }
         staffToken = data.token;
@@ -351,6 +359,8 @@ function switchPosTab(tab) {
     document.getElementById('posRegisterView').classList.add('hidden');
     document.getElementById('posRestockView').classList.add('hidden');
     document.getElementById('posHistoryView').classList.add('hidden');
+    const mrb = document.getElementById('mobileReceiptBar');
+    if (mrb) mrb.classList.toggle('hidden', tab !== 'register');
 
     if (tab === 'register') {
         document.getElementById('navRegisterBtn').classList.add('active');
@@ -592,6 +602,17 @@ function renderPosCart() {
     recalcPosTotals();
 }
 
+
+function toggleMobileReceiptDrawer(open) {
+    const panel = document.querySelector('.pos-cart-panel');
+    if (!panel) return;
+    if (open) {
+        panel.classList.add('mobile-open');
+    } else {
+        panel.classList.remove('mobile-open');
+    }
+}
+
 function recalcPosTotals() {
     const subtotal = posCart.reduce((sum, i) => sum + (i.price * i.qty), 0);
     let discount = Math.max(0, parseInt(document.getElementById('posDiscountInput').value) || 0);
@@ -605,6 +626,18 @@ function recalcPosTotals() {
     const tendered = parseInt(document.getElementById('posCashTendered').value);
     const change = (!isNaN(tendered) && tendered >= grandTotal) ? (tendered - grandTotal) : 0;
     document.getElementById('posChangeVal').innerText = `${change.toLocaleString()} MMK`;
+
+    const totalQty = posCart.reduce((sum, i) => sum + i.qty, 0);
+    const mBadge = document.getElementById('mobileCartBadge');
+    const mTotal = document.getElementById('mobileCartTotal');
+    const mSub = document.getElementById('mobileCartSub');
+    if (mBadge) mBadge.innerText = totalQty;
+    if (mTotal) mTotal.innerText = `${grandTotal.toLocaleString()} MMK`;
+    if (mSub) {
+        mSub.innerText = totalQty > 0
+            ? (currentPosLang === 'mm' ? `${totalQty} မျိုး ရွေးထားပါသည် — နှိပ်၍ ငွေရှင်းပါ` : `${totalQty} item(s) — Tap to review & checkout`)
+            : (currentPosLang === 'mm' ? 'ပစ္စည်းမရွေးရသေးပါ' : 'No items selected yet');
+    }
 }
 
 async function completePosSale() {
@@ -668,6 +701,7 @@ async function completePosSale() {
 
         showPosToast(`Receipt ${data.receipt_no} completed!`);
         clearPosCart();
+        toggleMobileReceiptDrawer(false);
         await refreshPosData();
         printPosReceipt(receiptSnapshot);
     } finally {
