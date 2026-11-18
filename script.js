@@ -1276,7 +1276,6 @@ function applyStaffUIState() {
     if (loggedIn) {
         badge.classList.remove('hidden');
         badge.innerHTML = `<i class="fa fa-user-shield"></i> ${escapeHtml(currentStaffUser.display_name)} (${currentStaffUser.role.replace('_', ' ')})`;
-        startStorefrontSessionHeartbeat(); // <--- Heartbeat session auto logout 90 sec
     } else {
         badge.classList.add('hidden');
         badge.innerHTML = '';
