@@ -352,6 +352,7 @@ async function activatePosWorkspace() {
         switchPosTab('restock');
     }
 }
+
 function switchPosTab(tab) {
     ['navRegisterBtn', 'navRestockBtn', 'navHistoryBtn'].forEach(id => {
         document.getElementById(id).classList.remove('active');
@@ -1060,24 +1061,4 @@ function exportSalesCsv() {
         ]);
     });
     downloadCsvFile(`KoSoeLovePets_Sales_${new Date().toISOString().slice(0,10)}.csv`, rows);
-}
-// ==========================================
-// 9. 90-SECOND SESSION KEEPALIVE & HEARTBEAT
-// ==========================================
-let posHeartbeatTimer = null;
-function startPosSessionHeartbeat() {
-    clearInterval(posHeartbeatTimer);
-    posHeartbeatTimer = setInterval(async () => {
-        if (!staffToken || document.hidden) return;
-        const { data, error } = await supabaseClient.rpc('rpc_validate_session');
-        if (error || !data || !data.valid) {
-            clearInterval(posHeartbeatTimer);
-            staffToken = '';
-            localStorage.removeItem('kosoepets_staff_token_v75');
-            alert(currentPosLang === 'mm'
-                ? 'လှုပ်ရှားမှုမရှိသည်မှာ စက္ကန့် ၉၀ ကျော်သွားပါသဖြင့် အလိုအလျောက် Logout ဖြစ်သွားပါသည်။'
-                : 'Session expired after 90 seconds of inactivity. Please sign in again.');
-            location.reload();
-        }
-    }, 30000);
 }

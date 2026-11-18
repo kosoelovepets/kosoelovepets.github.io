@@ -1,19 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
-<!DOCTYPE html>
-<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ko Soe Love Pets - v8.2</title>
-    <!-- Pyidaungsu, Padauk, Noto Sans Myanmar & Friendly English Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Noto+Sans+Myanmar:wght@400;500;700&family=Nunito:wght@400;600;700;800&family=Padauk:wght@400;700&display=swap" rel="stylesheet">
+    <title>Ko Soe Love Pets - v8.4</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
     <!-- Supabase CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- HEIC/HEIF Image Conversion Library -->
     <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
+    <!--Pyidaungsu Font Updated-->
+    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Noto+Sans+Myanmar:wght@400;500;700&family=Nunito:wght@400;600;700;800&family=Padauk:wght@400;700&display=swap" rel="stylesheet">
 </head>
 <body>
     <!-- Top System Banner -->
@@ -32,7 +30,7 @@
     <header>
         <div class="header-top">
             <div class="logo-container">
-                <h1><span style="color:#ff758c;">●</span> Ko Soe <span style="color:#ff9a9e;">Love Pets</span> <small class="version-badge">v7.5.3</small></h1>
+                <h1><span style="color:#ff758c;">●</span> Ko Soe <span style="color:#ff9a9e;">Love Pets</span> <small class="version-badge">v8.4</small></h1>
             </div>
             <div class="header-controls">
                 <input type="text" id="searchInput" placeholder="Search products...">
@@ -86,6 +84,7 @@
                 <button type="button" class="staff-tab hidden" id="tabBtnUsers" onclick="switchStaffView('users')"><i class="fa fa-users-cog"></i> Users</button>
                 <button type="button" class="staff-tab hidden" id="tabBtnLogs" onclick="switchStaffView('logs')"><i class="fa fa-history"></i> Activity Logs</button>
                 <button type="button" class="staff-tab hidden" id="tabBtnSettings" onclick="switchStaffView('settings')"><i class="fa fa-sliders-h"></i> Settings</button>
+                <a href="pos.html" class="staff-tab hidden" id="openPosTerminalBtn" style="background:#16a34a; color:#fff; text-decoration:none;"><i class="fa fa-cash-register"></i> POS Terminal</a>
             </div>
         </div>
     </header>
