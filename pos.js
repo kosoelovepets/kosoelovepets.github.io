@@ -355,6 +355,7 @@ async function activatePosWorkspace() {
 
     document.getElementById('navRegisterBtn').classList.toggle('hidden', !hasPosPerm('pos.sell'));
     document.getElementById('navRestockBtn').classList.toggle('hidden', !hasPosPerm('pos.restock'));
+    document.getElementById('navHistoryBtn').classList.toggle('hidden', !(currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'ADMIN' || hasPosPerm('logs.view')));
 
     await refreshPosData();
     subscribeRealtimeStock();
