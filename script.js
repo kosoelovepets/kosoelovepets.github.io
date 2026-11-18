@@ -1705,10 +1705,8 @@ function openUserFormModal(userId = null) {
         document.getElementById('formStatus').value = 'active';
         document.getElementById('formPasswordLabel').innerText = 'Initial Password (Min 4 chars):';
         setAllPermissionCheckboxes(false);
-        ['product.view', 'pos.sell', 'pos.restock'].forEach(code => {
-            const cb = document.querySelector(`#permCheckboxGrid input[value="${code}"]`);
-            if (cb) cb.checked = true;
-        });
+        const viewCb = document.querySelector('#permCheckboxGrid input[value="product.view"]');
+        if (viewCb) viewCb.checked = true;
     } else {
         const u = staffUsersList.find(item => item.id === userId);
         if (!u) return;
