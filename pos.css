@@ -4,7 +4,8 @@
    ========================================== */
 @font-face {
     font-family: 'Pyidaungsu';
-    src: local('Pyidaungsu'), local('Pyidaungsu Regular'),
+    src: local('Pyidaungsu'), local('Pyidaungsu Regular'), local('Myanmar3'),
+         url('https://cdn.jsdelivr.net/gh/nicolas-kslp/fonts/Pyidaungsu-2.5.3_Regular.ttf') format('truetype'),
          url('https://cdn.jsdelivr.net/gh/mgyway/pyidaungsu-font@master/Pyidaungsu-2.5.3_Regular.ttf') format('truetype');
     font-weight: 400;
     font-style: normal;
@@ -12,7 +13,7 @@
 }
 @font-face {
     font-family: 'Pyidaungsu';
-    src: local('Pyidaungsu Bold'),
+    src: local('Pyidaungsu Bold'), local('Myanmar3 Bold'),
          url('https://cdn.jsdelivr.net/gh/mgyway/pyidaungsu-font@master/Pyidaungsu-2.5.3_Bold.ttf') format('truetype');
     font-weight: 700;
     font-style: normal;
@@ -35,13 +36,15 @@
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body {
-    font-family: 'Pyidaungsu', 'Nunito', 'Noto Sans Myanmar', -apple-system, BlinkMacSystemFont, sans-serif;
-    line-height: 1.55;
+    font-family: 'Pyidaungsu', 'Padauk', 'Noto Sans Myanmar', 'Nunito', -apple-system, BlinkMacSystemFont, sans-serif;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
     background: var(--pos-bg);
     color: var(--pos-text);
     min-height: 100vh;
 }
-h1, h2, h3, .brand-title { font-family: 'Baloo 2', 'Pyidaungsu', cursive, sans-serif; }
+h1, h2, h3, .brand-title { font-family: 'Pyidaungsu', 'Padauk', 'Noto Sans Myanmar', 'Baloo 2', sans-serif; line-height: 1.45; }
 .hidden { display: none !important; }
 
 /* Top Bar */
@@ -472,11 +475,22 @@ table.pos-table td {
     border: none;
     padding: 6px 10px;
     border-radius: 8px;
-    font-family: 'Pyidaungsu', 'Nunito', sans-serif;
+    font-family: 'Pyidaungsu', 'Padauk', 'Noto Sans Myanmar', 'Nunito', sans-serif;
     font-weight: 700;
     font-size: 13px;
     cursor: pointer;
 }
 input, select, button, textarea {
-    font-family: 'Pyidaungsu', 'Nunito', sans-serif;
+    font-family: 'Pyidaungsu', 'Padauk', 'Noto Sans Myanmar', 'Nunito', sans-serif;
+}
+
+.storefront-btn {
+    background: #fff;
+    color: #e85a73;
+    border: 1.5px solid rgba(255,255,255,0.9);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+}
+.storefront-btn:hover {
+    background: #fff5f7;
+    transform: translateY(-1px);
 }
