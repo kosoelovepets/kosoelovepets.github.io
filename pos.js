@@ -37,6 +37,10 @@ const posTranslations = {
         cat_cats: "Cats",
         cat_dogs: "Dogs",
         cat_acc: "Accessories",
+        cat_fish: "Fish",
+        cat_bird: "Bird",
+        cat_hamster: "Hamster",
+        cat_turtle: "Turtle",
         current_receipt: "Current Receipt",
         btn_clear: "Clear",
         empty_cart: "Select items or scan SKU to start sale",
@@ -118,6 +122,10 @@ const posTranslations = {
         cat_cats: "ကြောင်ပစ္စည်း",
         cat_dogs: "ခွေးပစ္စည်း",
         cat_acc: "အသုံးအဆောင်",
+        cat_fish: "ငါးပစ္စည်း",
+        cat_bird: "ငှက်ပစ္စည်း",
+        cat_hamster: "ဟမ်းစတား",
+        cat_turtle: "လိပ်ပစ္စည်း",
         current_receipt: "လက်ရှိဘောက်ချာ",
         btn_clear: "ရှင်းလင်းမည်",
         empty_cart: "အရောင်းစတင်ရန် ပစ္စည်းရွေးချယ်ပါ သို့မဟုတ် SKU ရိုက်ထည့်ပါ",
@@ -492,7 +500,12 @@ function renderPosCatalog() {
                         <span class="sku-tag">${escapeHtml(p.sku || 'NO-SKU')}</span>
                         <span class="stock-badge ${badgeClass}">${badgeText}</span>
                     </div>
-                    <img src="${escapeHtml(p.img || '')}" class="pos-tile-img" onerror="this.style.display='none'">
+                    <div class="pos-tile-img-wrap">
+                        <img src="${escapeHtml(p.img || '')}" class="pos-tile-img" onerror="this.style.display='none'">
+                        ${p.exp && String(p.exp).trim() !== '' && String(p.exp).trim().toUpperCase() !== 'N/A'
+                            ? `<span class="pos-exp-badge">Exp: ${escapeHtml(p.exp)}</span>`
+                            : ''}
+                    </div>
                     <div class="pos-tile-name">${escapeHtml(p.name)}${isDeleted ? `<br><small style="color:#dc2626; font-weight:800;">(@${escapeHtml(p.deleted_by || 'admin')})</small>` : ''}</div>
                 </div>
                 <div class="pos-tile-price">${Number(p.price).toLocaleString()} MMK</div>
@@ -1083,10 +1096,11 @@ function exportSalesCsv() {
 
 
 // ==========================================
-// 8. 90-SECOND INACTIVITY AUTO-SIGNOUT (INTERACTION-DRIVEN, ZERO FALSE LOGOUTS)
+// 8. 7-MINUTE INACTIVITY AUTO-SIGNOUT & BROWSER CLOSURE HANDLER
 // ==========================================
 let posIdleTimer = null;
 let lastPosTouchMs = 0;
+let isInternalPosNavigation = false;
 
 function resetPosInactivityTimer() {
     if (!currentUser || !staffToken) return;
@@ -1094,13 +1108,13 @@ function resetPosInactivityTimer() {
     posIdleTimer = setTimeout(async () => {
         if (!currentUser) return;
         alert(currentPosLang === 'mm'
-            ? 'လှုပ်ရှားမှုမရှိသည်မှာ စက္ကန့် ၉၀ ကျော်သွားပါသဖြင့် အလိုအလျောက် Sign Out ဖြစ်သွားပါသည်။'
-            : 'Signed out automatically after 90 seconds of inactivity.');
+            ? 'လှုပ်ရှားမှုမရှိသည်မှာ ၇ မိနစ် ကျော်သွားပါသဖြင့် အလိုအလျောက် Sign Out ဖြစ်သွားပါသည်။'
+            : 'Signed out automatically after 7 minutes of inactivity.');
         await posLogout();
-    }, 90000);
+    }, 420000);
 
     const now = Date.now();
-    if (now - lastPosTouchMs > 25000 && supabaseClient) {
+    if (now - lastPosTouchMs > 60000 && supabaseClient) {
         lastPosTouchMs = now;
         supabaseClient.rpc('rpc_touch_session').then(({ data }) => {
             if (data && data.expired && currentUser) {
@@ -1113,4 +1127,61 @@ function resetPosInactivityTimer() {
 
 ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll'].forEach(evt => {
     window.addEventListener(evt, resetPosInactivityTimer, { passive: true });
+});
+
+// Mark internal navigation to index.html so switching between POS & Storefront does not log out
+document.addEventListener('click', (e) => {
+    const link = e.target.closest('a[href="index.html"]');
+    if (link) {
+        isInternalPosNavigation = true;
+        sessionStorage.setItem('kosoepets_nav_switch', String(Date.now()));
+    }
+});
+
+// Track active tabs for this session so closing one tab does not kill another active tab
+const POS_TAB_ID = 'tab_' + Math.random().toString(36).slice(2);
+function registerPosTabPresence() {
+    if (!staffToken) return;
+    try {
+        const tabs = JSON.parse(localStorage.getItem('kosoepets_open_tabs') || '{}');
+        tabs[POS_TAB_ID] = Date.now();
+        localStorage.setItem('kosoepets_open_tabs', JSON.stringify(tabs));
+    } catch (_) {}
+}
+function unregisterPosTabPresence() {
+    try {
+        const tabs = JSON.parse(localStorage.getItem('kosoepets_open_tabs') || '{}');
+        delete tabs[POS_TAB_ID];
+        const now = Date.now();
+        const remaining = Object.keys(tabs).filter(k => (now - tabs[k]) < 450000);
+        localStorage.setItem('kosoepets_open_tabs', JSON.stringify(tabs));
+        return remaining.length;
+    } catch (_) {
+        return 0;
+    }
+}
+setInterval(registerPosTabPresence, 15000);
+registerPosTabPresence();
+
+window.addEventListener('pagehide', (e) => {
+    if (!currentUser || !staffToken || isInternalPosNavigation) return;
+    const navTs = Number(sessionStorage.getItem('kosoepets_nav_switch') || 0);
+    if (Date.now() - navTs < 3000) return;
+    const remainingTabs = unregisterPosTabPresence();
+    if (remainingTabs > 0) return;
+
+    const tokenToClose = staffToken;
+    localStorage.removeItem('kosoepets_staff_token_v75');
+    try {
+        fetch(`${SUPABASE_URL}/rest/v1/rpc/rpc_beacon_logout`, {
+            method: 'POST',
+            keepalive: true,
+            headers: {
+                'Content-Type': 'application/json',
+                'apikey': SUPABASE_ANON_KEY,
+                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+            },
+            body: JSON.stringify({ p_token: tokenToClose, p_user_agent: navigator.userAgent })
+        });
+    } catch (_) {}
 });

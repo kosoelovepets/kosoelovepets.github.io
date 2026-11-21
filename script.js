@@ -39,6 +39,7 @@ let currentLang = 'en';
 const translations = {
     en: {
         home: "Home", cats: "Cats", dogs: "Dogs", accessories: "Accessories",
+        fish: "Fish", bird: "Bird", hamster: "Hamster", turtle: "Turtle",
         snack: "Snack", food: "Food", medicine: "Medicine", bowls: "Bowls", toys: "Toys", gear: "Gear",
         admin_login: "Staff Login", logout: "Logout", password: "Password",
         all_items: "All Hot Items", add_new: "Add New Product",
@@ -53,6 +54,7 @@ const translations = {
     },
     mm: {
         home: "ပင်မစာမျက်နှာ", cats: "ကြောင်များ", dogs: "ခွေးများ", accessories: "ဆက်စပ်ပစ္စည်းများ",
+        fish: "ငါးများ", bird: "ငှက်များ", hamster: "ဟမ်းစတားများ", turtle: "လိပ်များ",
         snack: "သရေစာ", food: "အစားအစာ", medicine: "ဆေးဝါး", bowls: "ပန်းကန်များ", toys: "ကစားစရာများ", gear: "သုံးဆောင်များ",
         admin_login: "ဝန်ထမ်းဝင်ရန်", logout: "ထွက်ရန်", password: "စကားဝှက်",
         all_items: "လူကြိုက်များသော ပစ္စည်းများ", add_new: "ထုတ်ကုန်အသစ်ထည့်ရန်",
@@ -1402,6 +1404,8 @@ function openEdit(id) {
 
     document.getElementById('editId').value = item.id;
     document.getElementById('editSku').value = item.sku || '';
+    if (document.getElementById('editType')) document.getElementById('editType').value = item.type || 'Cats';
+    if (document.getElementById('editCategory')) document.getElementById('editCategory').value = item.category || 'Food';
     document.getElementById('editName').value = item.name;
     document.getElementById('editImg').value = item.img;
     pendingEditImgUrl = '';
@@ -1493,8 +1497,22 @@ async function saveEdit() {
 
     if (hasPerm('product.edit')) {
         const newSku = document.getElementById('editSku').value.trim().toUpperCase() || null;
+        const newType = document.getElementById('editType') ? document.getElementById('editType').value : oldItem.type;
+        const newCategory = document.getElementById('editCategory') ? document.getElementById('editCategory').value : oldItem.category;
         const newName = document.getElementById('editName').value.trim();
         const newExp = document.getElementById('editExp').value.trim();
+        if (newType && newType !== oldItem.type) {
+            updates.type = newType;
+            oldSnap.type = oldItem.type;
+            newSnap.type = newType;
+            diffs.push(`Type: ${oldItem.type} → ${newType}`);
+        }
+        if (newCategory && newCategory !== oldItem.category) {
+            updates.category = newCategory;
+            oldSnap.category = oldItem.category;
+            newSnap.category = newCategory;
+            diffs.push(`Category: ${oldItem.category} → ${newCategory}`);
+        }
         if (newSku !== (oldItem.sku || null)) {
             updates.sku = newSku;
             oldSnap.sku = oldItem.sku;
@@ -2083,10 +2101,11 @@ async function saveContact() {
 
 
 // ==========================================
-// 12. 90-SECOND INACTIVITY AUTO-SIGNOUT (INTERACTION-DRIVEN, ZERO FALSE LOGOUTS)
+// 12. 7-MINUTE INACTIVITY AUTO-SIGNOUT & BROWSER CLOSURE HANDLER
 // ==========================================
 let storefrontIdleTimer = null;
 let lastStorefrontTouchMs = 0;
+let isInternalStorefrontNavigation = false;
 
 function resetStorefrontInactivityTimer() {
     if (!currentStaffUser || !staffSessionToken) return;
@@ -2095,12 +2114,12 @@ function resetStorefrontInactivityTimer() {
         if (!currentStaffUser) return;
         await logout();
         alert(currentLang === 'mm'
-            ? 'လှုပ်ရှားမှုမရှိသည်မှာ စက္ကန့် ၉၀ ကျော်သွားပါသဖြင့် အလိုအလျောက် Sign Out ဖြစ်သွားပါသည်။'
-            : 'Signed out automatically after 90 seconds of inactivity.');
-    }, 90000);
+            ? 'လှုပ်ရှားမှုမရှိသည်မှာ ၇ မိနစ် ကျော်သွားပါသဖြင့် အလိုအလျောက် Sign Out ဖြစ်သွားပါသည်။'
+            : 'Signed out automatically after 7 minutes of inactivity.');
+    }, 420000);
 
     const now = Date.now();
-    if (now - lastStorefrontTouchMs > 25000 && !useLocalFallback && supabaseClient) {
+    if (now - lastStorefrontTouchMs > 60000 && !useLocalFallback && supabaseClient) {
         lastStorefrontTouchMs = now;
         supabaseClient.rpc('rpc_touch_session').then(({ data }) => {
             if (data && data.expired && currentStaffUser) {
@@ -2113,4 +2132,61 @@ function resetStorefrontInactivityTimer() {
 
 ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll'].forEach(evt => {
     window.addEventListener(evt, resetStorefrontInactivityTimer, { passive: true });
+});
+
+// Mark internal navigation to pos.html so switching between Storefront & POS does not log out
+document.addEventListener('click', (e) => {
+    const link = e.target.closest('a[href="pos.html"]');
+    if (link) {
+        isInternalStorefrontNavigation = true;
+        sessionStorage.setItem('kosoepets_nav_switch', String(Date.now()));
+    }
+});
+
+// Track active tabs for this session so closing one tab does not kill another active tab
+const SF_TAB_ID = 'sf_' + Math.random().toString(36).slice(2);
+function registerSfTabPresence() {
+    if (!staffSessionToken) return;
+    try {
+        const tabs = JSON.parse(localStorage.getItem('kosoepets_open_tabs') || '{}');
+        tabs[SF_TAB_ID] = Date.now();
+        localStorage.setItem('kosoepets_open_tabs', JSON.stringify(tabs));
+    } catch (_) {}
+}
+function unregisterSfTabPresence() {
+    try {
+        const tabs = JSON.parse(localStorage.getItem('kosoepets_open_tabs') || '{}');
+        delete tabs[SF_TAB_ID];
+        const now = Date.now();
+        const remaining = Object.keys(tabs).filter(k => (now - tabs[k]) < 450000);
+        localStorage.setItem('kosoepets_open_tabs', JSON.stringify(tabs));
+        return remaining.length;
+    } catch (_) {
+        return 0;
+    }
+}
+setInterval(registerSfTabPresence, 15000);
+registerSfTabPresence();
+
+window.addEventListener('pagehide', () => {
+    if (!currentStaffUser || !staffSessionToken || isInternalStorefrontNavigation || useLocalFallback) return;
+    const navTs = Number(sessionStorage.getItem('kosoepets_nav_switch') || 0);
+    if (Date.now() - navTs < 3000) return;
+    const remainingTabs = unregisterSfTabPresence();
+    if (remainingTabs > 0) return;
+
+    const tokenToClose = staffSessionToken;
+    localStorage.removeItem('kosoepets_staff_token_v75');
+    try {
+        fetch(`${SUPABASE_URL}/rest/v1/rpc/rpc_beacon_logout`, {
+            method: 'POST',
+            keepalive: true,
+            headers: {
+                'Content-Type': 'application/json',
+                'apikey': SUPABASE_ANON_KEY,
+                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+            },
+            body: JSON.stringify({ p_token: tokenToClose, p_user_agent: navigator.userAgent })
+        });
+    } catch (_) {}
 });

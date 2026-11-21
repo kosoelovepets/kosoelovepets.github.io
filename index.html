@@ -66,6 +66,37 @@
                         <li><a href="javascript:void(0)" onclick="filterProducts('Accessories', 'Bowls')" data-i18n="bowls">Bowls</a></li>
                         <li><a href="javascript:void(0)" onclick="filterProducts('Accessories', 'Toys')" data-i18n="toys">Toys</a></li>
                         <li><a href="javascript:void(0)" onclick="filterProducts('Accessories', 'Gear')" data-i18n="gear">Gear</a></li>
+                        <li><a href="javascript:void(0)" onclick="filterProducts('Accessories', 'Accessories')" data-i18n="accessories">Accessories</a></li>
+                    </ul>
+                </li>
+                <li class="has-sub"><a href="javascript:void(0)" class="menu-link" onclick="toggleSubMenu(event, this)"><span data-i18n="fish">Fish</span> <i class="fa fa-chevron-down" style="font-size:12px;"></i></a>
+                    <ul class="sub-menu">
+                        <li><a href="javascript:void(0)" onclick="filterProducts('Fish', 'Food')" data-i18n="food">Food</a></li>
+                        <li><a href="javascript:void(0)" onclick="filterProducts('Fish', 'Medicine')" data-i18n="medicine">Medicine</a></li>
+                        <li><a href="javascript:void(0)" onclick="filterProducts('Fish', 'Accessories')" data-i18n="accessories">Accessories</a></li>
+                    </ul>
+                </li>
+                <li class="has-sub"><a href="javascript:void(0)" class="menu-link" onclick="toggleSubMenu(event, this)"><span data-i18n="bird">Bird</span> <i class="fa fa-chevron-down" style="font-size:12px;"></i></a>
+                    <ul class="sub-menu">
+                        <li><a href="javascript:void(0)" onclick="filterProducts('Bird', 'Food')" data-i18n="food">Food</a></li>
+                        <li><a href="javascript:void(0)" onclick="filterProducts('Bird', 'Snack')" data-i18n="snack">Snack</a></li>
+                        <li><a href="javascript:void(0)" onclick="filterProducts('Bird', 'Medicine')" data-i18n="medicine">Medicine</a></li>
+                        <li><a href="javascript:void(0)" onclick="filterProducts('Bird', 'Accessories')" data-i18n="accessories">Accessories</a></li>
+                    </ul>
+                </li>
+                <li class="has-sub"><a href="javascript:void(0)" class="menu-link" onclick="toggleSubMenu(event, this)"><span data-i18n="hamster">Hamster</span> <i class="fa fa-chevron-down" style="font-size:12px;"></i></a>
+                    <ul class="sub-menu">
+                        <li><a href="javascript:void(0)" onclick="filterProducts('Hamster', 'Food')" data-i18n="food">Food</a></li>
+                        <li><a href="javascript:void(0)" onclick="filterProducts('Hamster', 'Snack')" data-i18n="snack">Snack</a></li>
+                        <li><a href="javascript:void(0)" onclick="filterProducts('Hamster', 'Medicine')" data-i18n="medicine">Medicine</a></li>
+                        <li><a href="javascript:void(0)" onclick="filterProducts('Hamster', 'Accessories')" data-i18n="accessories">Accessories</a></li>
+                    </ul>
+                </li>
+                <li class="has-sub"><a href="javascript:void(0)" class="menu-link" onclick="toggleSubMenu(event, this)"><span data-i18n="turtle">Turtle</span> <i class="fa fa-chevron-down" style="font-size:12px;"></i></a>
+                    <ul class="sub-menu">
+                        <li><a href="javascript:void(0)" onclick="filterProducts('Turtle', 'Food')" data-i18n="food">Food</a></li>
+                        <li><a href="javascript:void(0)" onclick="filterProducts('Turtle', 'Medicine')" data-i18n="medicine">Medicine</a></li>
+                        <li><a href="javascript:void(0)" onclick="filterProducts('Turtle', 'Accessories')" data-i18n="accessories">Accessories</a></li>
                     </ul>
                 </li>
             </ul>
@@ -340,9 +371,26 @@
             <input type="text" id="addSku" placeholder="Auto-generated (e.g. P00012)" readonly style="background:#f1f5f9; color:#64748b; cursor:not-allowed;">
             <small style="color:#64748b; margin-top:-6px; margin-bottom:6px; display:block;">System assigns sequential SKU automatically to prevent human errors.</small>
             <label>Type:</label>
-            <select id="addType"><option value="Cats">Cats</option><option value="Dogs">Dogs</option><option value="Accessories">Accessories</option></select>
+            <select id="addType">
+                <option value="All">All</option>
+                <option value="Cats" selected>Cats</option>
+                <option value="Dogs">Dogs</option>
+                <option value="Accessories">Accessories</option>
+                <option value="Fish">Fish</option>
+                <option value="Bird">Bird</option>
+                <option value="Hamster">Hamster</option>
+                <option value="Turtle">Turtle</option>
+            </select>
             <label>Category:</label>
-            <select id="addCategory"><option value="Snack">Snack</option><option value="Food">Food</option><option value="Medicine">Medicine</option><option value="Bowls">Bowls</option><option value="Toys">Toys</option><option value="Gear">Gear</option></select>
+            <select id="addCategory">
+                <option value="Snack">Snack</option>
+                <option value="Food">Food</option>
+                <option value="Medicine">Medicine</option>
+                <option value="Bowls">Bowls</option>
+                <option value="Toys">Toys</option>
+                <option value="Gear">Gear</option>
+                <option value="Accessories">Accessories</option>
+            </select>
             <label>Product Name:</label>
             <input type="text" id="addName">
             <div id="addImageGroup">
@@ -378,6 +426,27 @@
             <div id="editDetailsGroup">
                 <label>Product ID / SKU (Matches POS SKU, e.g. P00001):</label>
                 <input type="text" id="editSku" placeholder="e.g. P001">
+                <label>Type:</label>
+                <select id="editType">
+                    <option value="All">All</option>
+                    <option value="Cats">Cats</option>
+                    <option value="Dogs">Dogs</option>
+                    <option value="Accessories">Accessories</option>
+                    <option value="Fish">Fish</option>
+                    <option value="Bird">Bird</option>
+                    <option value="Hamster">Hamster</option>
+                    <option value="Turtle">Turtle</option>
+                </select>
+                <label>Category:</label>
+                <select id="editCategory">
+                    <option value="Snack">Snack</option>
+                    <option value="Food">Food</option>
+                    <option value="Medicine">Medicine</option>
+                    <option value="Bowls">Bowls</option>
+                    <option value="Toys">Toys</option>
+                    <option value="Gear">Gear</option>
+                    <option value="Accessories">Accessories</option>
+                </select>
                 <label>Product Name:</label>
                 <input type="text" id="editName">
                 <label>Expiry Date:</label>
@@ -498,8 +567,6 @@
                     <label class="perm-item"><input type="checkbox" value="logs.view"> View Activity Logs (<code>logs.view</code>)</label>
                     <label class="perm-item"><input type="checkbox" value="settings.edit"> Edit Banner/Footer (<code>settings.edit</code>)</label>
                     <label class="perm-item"><input type="checkbox" value="users.manage"> Manage Sales Users (<code>users.manage</code>)</label>
-                    <label class="perm-item"><input type="checkbox" value="pos.sell"> POS Cashier / Sell (<code>pos.sell</code>)</label>
-                    <label class="perm-item"><input type="checkbox" value="pos.restock"> POS Stock-In / Adjust (<code>pos.restock</code>)</label>
                     <label class="perm-item"><input type="checkbox" value="pos.sell"> POS Cashier / Sell (<code>pos.sell</code>)</label>
                     <label class="perm-item"><input type="checkbox" value="pos.restock"> POS Stock-In / Adjust (<code>pos.restock</code>)</label>
                     <label class="perm-item"><input type="checkbox" value="pos.history"> POS Sales &amp; Ledger (<code>pos.history</code>)</label>
