@@ -493,6 +493,10 @@ function renderPosCatalog() {
             ? '[Deleted]'
             : (st.status === 'OUT_OF_STOCK' ? (currentPosLang === 'mm' ? 'ပြတ် (0)' : 'Out (0)') : (currentPosLang === 'mm' ? `ကျန်: ${st.qty}` : `Stock: ${st.qty}`));
 
+        const expDisplay = (p.exp !== null && p.exp !== undefined && String(p.exp).trim() !== '')
+            ? String(p.exp).trim()
+            : 'N/A';
+
         return `
             <div class="pos-item-tile ${disabled ? 'disabled' : ''}" style="${isDeleted ? 'opacity:0.45; background:#fef2f2;' : ''}" onclick="${disabled ? '' : `addPosCartItem(${p.id})`}">
                 <div>
@@ -500,15 +504,13 @@ function renderPosCatalog() {
                         <span class="sku-tag">${escapeHtml(p.sku || 'NO-SKU')}</span>
                         <span class="stock-badge ${badgeClass}">${badgeText}</span>
                     </div>
-                    <div class="pos-tile-img-wrap">
-                        <img src="${escapeHtml(p.img || '')}" class="pos-tile-img" onerror="this.style.display='none'">
-                        ${p.exp && String(p.exp).trim() !== '' && String(p.exp).trim().toUpperCase() !== 'N/A'
-                            ? `<span class="pos-exp-badge">Exp: ${escapeHtml(p.exp)}</span>`
-                            : ''}
-                    </div>
+                    <img src="${escapeHtml(p.img || '')}" class="pos-tile-img" onerror="this.style.display='none'">
                     <div class="pos-tile-name">${escapeHtml(p.name)}${isDeleted ? `<br><small style="color:#dc2626; font-weight:800;">(@${escapeHtml(p.deleted_by || 'admin')})</small>` : ''}</div>
                 </div>
-                <div class="pos-tile-price">${Number(p.price).toLocaleString()} MMK</div>
+                <div class="pos-tile-bottom">
+                    <div class="pos-tile-price">${Number(p.price).toLocaleString()} MMK</div>
+                    <div class="pos-tile-exp">Exp: ${escapeHtml(expDisplay)}</div>
+                </div>
             </div>
         `;
     }).join('');
